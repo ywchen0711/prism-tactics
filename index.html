@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>稜鏡戰記 Prism Tactics</title>
+    <meta name="description" content="開源 HD-2D 戰略角色扮演遊戲，以 Three.js 打造。" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+TC:wght@400;700;900&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <canvas id="view"></canvas>
+    <div id="labels"></div>
+
+    <div id="hud">
+      <div id="turnOrder" class="panel"></div>
+      <div id="hoverPanel" class="panel"></div>
+      <div id="unitPanel" class="panel"></div>
+      <div id="menu" class="panel"></div>
+      <div id="preview" class="panel"></div>
+      <div id="hint"></div>
+      <div id="skillName"></div>
+      <div id="log"></div>
+      <div id="tools">
+        <button id="rotL" title="旋轉視角 (Q)">⟲</button>
+        <button id="rotR" title="旋轉視角 (E)">⟳</button>
+        <button id="speedBtn" title="切換速度 (F)">速度 ×1</button>
+        <button id="muteBtn">音效 開</button>
+      </div>
+    </div>
+    <div id="banner"></div>
+
+    <div id="title" class="screen">
+      <div class="t-inner">
+        <div class="t-kicker">PRISM TACTICS</div>
+        <h1>稜鏡戰記</h1>
+        <div class="t-sub">— 以信念為刃的戰爭 —</div>
+        <div class="t-btns">
+          <button id="startBtn">開始遊戲</button>
+          <button id="skipBtn" class="ghost">跳過劇情，直接戰鬥</button>
+        </div>
+        <div class="t-foot">開源 HD-2D 戰略 RPG · Three.js · MIT License</div>
+      </div>
+    </div>
+
+    <div id="quick" class="screen">
+      <div class="panel q-wrap">
+        <div class="sc-title">選擇戰役</div>
+        <div class="sc-opts">
+          <button class="sc-opt" data-c="A"><div class="o-t">黎明突破</div><div class="o-s">白晝正面進攻（困難）</div></button>
+          <button class="sc-opt" data-c="B"><div class="o-t">新月夜襲</div><div class="o-s">夜色中奇襲沉睡的守軍（普通）</div></button>
+        </div>
+      </div>
+    </div>
+
+    <div id="dialogue">
+      <img id="dlgPortrait" alt="" />
+      <div class="dlg-body">
+        <div id="dlgName"></div>
+        <div id="dlgText"></div>
+        <div class="dlg-next">▼</div>
+      </div>
+    </div>
+
+    <div id="scales" class="screen"></div>
+    <div id="result" class="screen"></div>
+
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>
