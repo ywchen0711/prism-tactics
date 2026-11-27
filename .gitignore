@@ -5,3 +5,5 @@ dist/
 sheet.html
 sheet2.html
 picker-bundle.js
+art/raw/
+art/gen.log

@@ -86,4 +86,7 @@ tools/
 
 ## 授權
 
+角色插畫頭像由開源模型 Animagine XL 4.0（CreativeML Open RAIL++-M）在本機產生，產生與去背工具在 `tools/portraits.py`、`tools/cutout.py`。
+
+
 [MIT](LICENSE)。本專案為粉絲向的原創作品，與 Square Enix 或《三角戰略》官方無關，未使用任何原作素材、角色或名稱。

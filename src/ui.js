@@ -26,7 +26,7 @@ function unitCard(u, compact) {
   if (u.boss) status.push('<em class="st boss">敵將</em>');
   return `
     <div class="card ${u.team}">
-      <img class="portrait" src="${u.portrait}" alt="">
+      <img class="portrait${u.portraitSmooth ? ' smooth' : ''}" src="${u.portrait}" alt="">
       <div class="info">
         <div class="nm">${esc(u.name)} <small>${esc(u.className)}</small> ${status.join('')}</div>
         <div class="row">HP <b>${u.hp}</b>/${u.maxHp} ${hpBar(u)}</div>

@@ -212,6 +212,8 @@ body.touch .mbtn kbd { display: none; }
 .res-btns { display: flex; flex-direction: column; gap: 8px; }
 .res-btns button { font-size: 16px; padding: 8px; }
 
+img.smooth, .portrait.smooth, #dlgPortrait.smooth { image-rendering: auto; object-fit: cover; object-position: 50% 15%; }
+
 /* phones and small tablets: compact HUD with large touch targets */
 @media (max-width: 760px), (max-height: 520px) {
   #turnOrder { top: max(8px, env(safe-area-inset-top)); left: 8px; padding: 5px 6px; gap: 4px; max-width: calc(100vw - 170px); overflow: hidden; }

@@ -10,11 +10,12 @@ import { HorizontalTiltShiftShader } from 'three/examples/jsm/shaders/Horizontal
 import { VerticalTiltShiftShader } from 'three/examples/jsm/shaders/VerticalTiltShiftShader.js';
 import {
   tileCanvas, waterCanvas, drawTree, drawTuft, drawRock, drawTorch, drawFlames, drawBanner,
-  characterFrames, portraitURL, CHAR_W, CHAR_H, pixelTex, highlightTex, cursorTex, ringTex, blobTex, skyTex,
+  characterFrames, CHAR_W, CHAR_H, pixelTex, highlightTex, cursorTex, ringTex, blobTex, skyTex,
 } from './pixelart.js';
 import { DIRS, EXTRAS, LV, topY } from './map.js';
 import { clamp, mulberry32, tween, Ease } from './util.js';
-import { SPECS, PORTRAIT_RES } from './data.js';
+import { SPECS } from './data.js';
+import { portraitOf } from './portraits.js';
 
 export const PX = 1 / 18; // world units per sprite pixel
 const CHAR_PX = 1 / 23; // characters are drawn at a finer pixel size
@@ -590,7 +591,9 @@ export class UnitView {
       front: this.frames.front.map((p) => pixelTex(p.toCanvas())),
       back: this.frames.back.map((p) => pixelTex(p.toCanvas())),
     };
-    unit.portrait = portraitURL(SPECS[unit.spec], PORTRAIT_RES);
+    const pic = portraitOf(unit.spec);
+    unit.portrait = pic.src;
+    unit.portraitSmooth = pic.smooth;
     this.baseScale = unit.boss ? 1.22 : 1;
     this.mesh = world.makeSprite(this.tex.front[0], CHAR_W, CHAR_H, { emissive: this.baseEmissive(), px: CHAR_PX });
     this.world.billboards.pop(); // unit sprites are billboarded in update()

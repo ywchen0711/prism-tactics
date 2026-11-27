@@ -1,6 +1,5 @@
 // Story scenes and the Scales of Conviction vote.
-import { portraitURL } from './pixelart.js';
-import { SPECS, PORTRAIT_RES } from './data.js';
+import { portraitOf } from './portraits.js';
 import { sfx } from './audio.js';
 
 const $ = (id) => document.getElementById(id);
@@ -15,7 +14,8 @@ const CAST = {
   bard: { name: '巴德', spec: 'general', title: '黑鋼將軍' },
 };
 
-const portrait = (id) => portraitURL(SPECS[CAST[id].spec], PORTRAIT_RES);
+const portrait = (id) => portraitOf(CAST[id].spec).src;
+const smooth = (id) => portraitOf(CAST[id].spec).smooth;
 
 export const INTRO = [
   [null, '鹽之大陸·諾爾維亞。三個國家，靠著鹽與鐵維繫著脆弱的和平。'],
@@ -68,6 +68,7 @@ function say(who, text) {
   box.classList.add('show');
   box.classList.toggle('narr', !c);
   $('dlgPortrait').src = c ? portrait(who) : '';
+  $('dlgPortrait').classList.toggle('smooth', !!c && smooth(who));
   $('dlgPortrait').style.display = c ? '' : 'none';
   $('dlgName').innerHTML = c ? `${c.name}<small>${c.title}</small>` : '';
   const el = $('dlgText');
@@ -199,7 +200,7 @@ export function scales() {
           <div class="sc-voters">
             ${state.map((s, i) => `
               <div class="voter ${s.vote === pref ? 'agree' : ''}">
-                <img src="${portrait(s.id)}" alt="">
+                <img class="${smooth(s.id) ? 'smooth' : ''}" src="${portrait(s.id)}" alt="">
                 <div class="vn">${CAST[s.id].name}</div>
                 <div class="vl">${pref ? (s.vote === pref ? '贊同' : '反對') : '？'}</div>
                 ${pref && s.vote !== pref && !s.tried ? `<button class="vbtn" data-talk="${i}">說服</button>` : ''}
@@ -225,7 +226,7 @@ export function scales() {
       sfx('select');
       const s = state[i];
       const box = root.querySelector('.sc-msg');
-      box.innerHTML = `<div class="talk"><img src="${portrait(s.id)}" alt=""><div><b>${CAST[s.id].name}</b>：「你想說什麼？」</div></div>
+      box.innerHTML = `<div class="talk"><img class="${smooth(s.id) ? 'smooth' : ''}" src="${portrait(s.id)}" alt=""><div><b>${CAST[s.id].name}</b>：「你想說什麼？」</div></div>
         <div class="args">${shuffle(s.args.slice()).map(([t, ok]) => `<button class="arg" data-ok="${ok ? 1 : 0}">「${t}」</button>`).join('')}</div>`;
       box.querySelectorAll('.arg').forEach((b) =>
         b.addEventListener('click', () => {
@@ -233,7 +234,7 @@ export function scales() {
           const ok = b.dataset.ok === '1';
           if (ok) s.vote = pref;
           sfx(ok ? 'buff' : 'cancel');
-          render(`<div class="talk"><img src="${portrait(s.id)}" alt=""><div><b>${CAST[s.id].name}</b>：「${ok ? s.yes : s.no}」</div></div>`);
+          render(`<div class="talk"><img class="${smooth(s.id) ? 'smooth' : ''}" src="${portrait(s.id)}" alt=""><div><b>${CAST[s.id].name}</b>：「${ok ? s.yes : s.no}」</div></div>`);
         }),
       );
     };
@@ -271,7 +272,7 @@ export function scales() {
         beam.setAttribute('transform', `rotate(${ang} 200 38)`);
         panA.setAttribute('transform', `rotate(${-ang} 60 38)`);
         panB.setAttribute('transform', `rotate(${-ang} 340 38)`);
-        row.insertAdjacentHTML('beforeend', `<div class="voter pop"><img src="${portrait(s.id)}" alt=""><div class="vn">${CAST[s.id].name}</div><div class="vl">${OPTIONS[s.vote].title}</div></div>`);
+        row.insertAdjacentHTML('beforeend', `<div class="voter pop"><img class="${smooth(s.id) ? 'smooth' : ''}" src="${portrait(s.id)}" alt=""><div class="vn">${CAST[s.id].name}</div><div class="vl">${OPTIONS[s.vote].title}</div></div>`);
       }
       const result = a > b ? 'A' : 'B';
       await new Promise((r) => setTimeout(r, 600));
