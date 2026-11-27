@@ -143,11 +143,12 @@ const blush = (skin) => {
 
 // ---------------------------------------------------------------- faces
 // Each character's face is described by spec.face so that nobody shares the same features:
-//   eyes:  round | droopy | sharp | sleepy | almond | closed | fierce | slit
+//   eyes:  round | sparkle | soft | droopy | sharp | sleepy | almond | closed | fierce | slit
 //   brows: normal | thick | angry | thin | arched | worried | bushy | none
-//   mouth: smile | small | gentle | open | smirk | frown | flat | grit | none
-//   nose:  dot | normal | long | big
+//   mouth: smile | small | gentle | cat | open | smirk | frown | flat | grit | none
+//   nose:  none | dot | normal | long | big
 //   jaw:   normal | round | square | sharp | long
+//   blush: true | false
 //   marks: freckles, mole, stubble, wrinkles, scar, tattoo, mustache
 export function faceOf(spec) {
   return {
@@ -157,6 +158,7 @@ export function faceOf(spec) {
     nose: spec.fem ? 'dot' : 'normal',
     jaw: 'normal',
     marks: [],
+    blush: !!spec.fem,
     ...spec.face,
   };
 }
@@ -258,6 +260,32 @@ function drawPortraitFeatures(p, spec, F, C, S, H) {
         put(2, 1, '#fff0f0');
         for (let i = 0; i <= 3; i++) put(i, 2, ink);
         break;
+      case 'sparkle': // large eyes with thick upper lashes and two catch-lights
+        for (let i = -1; i <= 4; i++) put(i, 0, ink);
+        for (let i = 0; i <= 3; i++) put(i, -1, ink);
+        iris([1, 2, 3, 4]);
+        put(0, 1, WHITE);
+        put(0, 2, WHITE);
+        put(0, 3, WHITE);
+        put(4, 1, WHITE);
+        put(4, 2, WHITE);
+        put(4, 3, WHITE);
+        put(2, 2, adjust(C.iris, -0.55));
+        p.set(ex + 1, ey + 1, '#ffffff', true);
+        p.set(ex + 2, ey + 1, '#ffffff', true);
+        p.set(ex + 3, ey + 4, '#ffffff', true);
+        for (let i = 1; i <= 3; i++) put(i, 5, dark(-0.12));
+        break;
+      case 'soft': // calm, lightly lowered lids, no harsh whites
+        for (let i = 0; i <= 4; i++) put(i, 0, ink);
+        put(-1, 1, ink);
+        iris([1, 2, 3]);
+        put(4, 1, WHITE);
+        put(0, 2, dark(-0.1));
+        put(2, 2, adjust(C.iris, -0.5));
+        glint(1);
+        for (let i = 1; i <= 3; i++) put(i, 4, dark(-0.12));
+        break;
       default: // round
         for (let i = 0; i <= 4; i++) put(i, 0, ink);
         iris([1, 2, 3]);
@@ -318,7 +346,9 @@ function drawPortraitFeatures(p, spec, F, C, S, H) {
 
   // nose
   const n = (x, y, a) => p.set(x, y, dark(a), true);
-  if (F.nose === 'dot') n(24, 26, -0.2);
+  if (F.nose === 'none') {
+    // anime-style: no nose
+  } else if (F.nose === 'dot') n(24, 26, -0.2);
   else if (F.nose === 'long') {
     for (let y = 23; y <= 26; y++) n(25, y, -0.1);
     n(25, 27, -0.3);
@@ -356,6 +386,16 @@ function drawPortraitFeatures(p, spec, F, C, S, H) {
       m(22, 28, dark(-0.16));
       m(25, 28, dark(-0.16));
       break;
+    case 'cat': {
+      const c = F.lip || mix(S, '#a04050', 0.5);
+      m(21, 28, c);
+      m(22, 29, c);
+      m(23, 28, c);
+      m(24, 28, c);
+      m(25, 29, c);
+      m(26, 28, c);
+      break;
+    }
     case 'open':
       for (let x = 22; x <= 25; x++) m(x, 28, '#5a2028');
       m(22, 29, '#5a2028');
@@ -390,7 +430,7 @@ function drawPortraitFeatures(p, spec, F, C, S, H) {
   }
 
   // marks
-  if (spec.fem && !has('freckles')) {
+  if (F.blush) {
     p.rect(15, 26, 17, 26, blush(S), true);
     p.rect(30, 26, 32, 26, blush(S), true);
   }
@@ -440,6 +480,19 @@ function drawSpriteFeatures(p, spec, F, C, hy) {
       both(1, 1, C.iris);
       both(2, 1, adjust(C.iris, -0.3));
       both(1, 0, adjust(C.iris, -0.35));
+      break;
+    case 'sparkle':
+      lash(0, 2);
+      both(-1, 0, ink);
+      both(0, 1, WHITE);
+      both(1, 1, adjust(C.iris, 0.15));
+      both(2, 1, C.iris);
+      both(1, 0, '#ffffff');
+      break;
+    case 'soft':
+      lash(0, 2);
+      both(1, 1, C.iris);
+      both(2, 1, adjust(C.iris, -0.3));
       break;
     case 'sharp':
       both(0, -1, ink);
@@ -508,6 +561,10 @@ function drawSpriteFeatures(p, spec, F, C, hy) {
       case 'gentle':
         m(15, 4, F.lip || mix(S, '#c0505a', 0.5));
         break;
+      case 'cat':
+        m(14, 4, F.lip || mix(S, '#a04050', 0.5));
+        m(16, 4, F.lip || mix(S, '#a04050', 0.5));
+        break;
       case 'open':
         m(14, 4, '#5a2028');
         m(15, 4, '#5a2028');
@@ -541,7 +598,7 @@ function drawSpriteFeatures(p, spec, F, C, hy) {
       default:
         m(15, 4);
     }
-  if (spec.fem && !has('freckles')) {
+  if (F.blush) {
     p.set(10, hy + 3, blush(S), true);
     p.set(19, hy + 3, blush(S), true);
   }
