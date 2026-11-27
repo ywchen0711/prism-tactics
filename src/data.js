@@ -31,6 +31,9 @@ export const CLASSES = {
   general: { name: '黑鋼將軍', hp: 90, atk: 25, def: 17, mag: 8, res: 12, spd: 8, mov: 3, jump: 2, basic: 'slash', skills: ['cleave', 'guard'] },
 };
 
+// Portraits are drawn at 48x48 and enlarged with Scale2x plus extra detail when this is 2.
+export const PORTRAIT_RES = 2;
+
 export const SPECS = {
   seren: { face: { eyes: 'round', brows: 'normal', mouth: 'smile', nose: 'normal', jaw: 'normal' }, weapon: 'sword', cape: true, pauldrons: true, hairStyle: 'spiky', ahoge: true, colors: { hair: '#6a4030', iris: '#3a78c8', skin: '#f1c9a5', armor: '#3c5a8e', armor2: '#c9a24a', cape: '#24386a', pants: '#2b2734', boots: '#4a3020', gem: '#7ad8ff' } },
   roland: { face: { eyes: 'sharp', brows: 'angry', mouth: 'flat', nose: 'long', jaw: 'square', marks: ['stubble', 'mustache'] }, weapon: 'spear', helmet: true, plume: true, pauldrons: true, colors: { hair: '#7a5236', iris: '#4a8a4a', skin: '#d9a77e', armor: '#8a3030', armor2: '#d0b060', metal: '#b9c0ca', plume: '#e8e0d0', pants: '#3a2a2a', boots: '#3a2618', gem: '#ffd060' } },

@@ -83,6 +83,31 @@ export class PixelCanvas {
         if (n) this.px[y * w + x] = adjust(n, amt);
       }
   }
+  // Scale2x (EPX): doubles the size while rounding off stair-stepped diagonals.
+  scale2x() {
+    const { w, h } = this;
+    const out = new PixelCanvas(w * 2, h * 2);
+    const g = (x, y) => (x < 0 || y < 0 || x >= w || y >= h ? null : this.px[y * w + x]);
+    for (let y = 0; y < h; y++)
+      for (let x = 0; x < w; x++) {
+        const P = g(x, y);
+        const A = g(x, y - 1);
+        const B = g(x + 1, y);
+        const Cl = g(x - 1, y);
+        const D = g(x, y + 1);
+        let e0 = P, e1 = P, e2 = P, e3 = P;
+        if (Cl === A && Cl !== D && A !== B) e0 = A;
+        if (A === B && A !== Cl && B !== D) e1 = B;
+        if (D === Cl && D !== B && Cl !== A) e2 = Cl;
+        if (B === D && B !== A && D !== Cl) e3 = D;
+        const lock = this.locked.has(y * w + x);
+        out.set(2 * x, 2 * y, e0, lock);
+        out.set(2 * x + 1, 2 * y, e1, lock);
+        out.set(2 * x, 2 * y + 1, e2, lock);
+        out.set(2 * x + 1, 2 * y + 1, e3, lock);
+      }
+    return out;
+  }
   alphaAt(u, v) {
     const x = Math.floor(u * this.w);
     const y = Math.floor((1 - v) * this.h);
@@ -143,9 +168,9 @@ const blush = (skin) => {
 
 // ---------------------------------------------------------------- faces
 // Each character's face is described by spec.face so that nobody shares the same features:
-//   eyes:  round | sparkle | soft | droopy | sharp | sleepy | almond | closed | fierce | slit
+//   eyes:  round | sparkle | gem | cat | soft | droopy | sharp | sleepy | almond | closed | fierce | slit
 //   brows: normal | thick | angry | thin | arched | worried | bushy | none
-//   mouth: smile | small | gentle | cat | open | smirk | frown | flat | grit | none
+//   mouth: smile | small | gentle | pout | fang | cat | open | smirk | frown | flat | grit | none
 //   nose:  none | dot | normal | long | big
 //   jaw:   normal | round | square | sharp | long
 //   blush: true | false
@@ -276,6 +301,34 @@ function drawPortraitFeatures(p, spec, F, C, S, H) {
         p.set(ex + 3, ey + 4, '#ffffff', true);
         for (let i = 1; i <= 3; i++) put(i, 5, dark(-0.12));
         break;
+      case 'cat': // large eyes with lifted, pointed outer corners
+        put(-2, -2, ink);
+        put(-1, -1, ink);
+        put(0, -1, ink);
+        for (let i = 0; i <= 4; i++) put(i, 0, ink);
+        iris([1, 2, 3]);
+        put(4, 1, WHITE);
+        put(4, 2, WHITE);
+        put(0, 1, WHITE);
+        put(2, 2, adjust(C.iris, -0.55));
+        glint(1);
+        for (let i = 0; i <= 3; i++) put(i, 4, dark(-0.2));
+        break;
+      case 'gem': // tall iris with a star-shaped glint
+        for (let i = -1; i <= 4; i++) put(i, 0, ink);
+        iris([1, 2, 3, 4]);
+        put(0, 1, WHITE);
+        put(0, 2, WHITE);
+        put(4, 1, WHITE);
+        put(4, 2, WHITE);
+        put(4, 3, WHITE);
+        put(2, 2, '#ffffff');
+        put(2, 1, adjust(C.iris, 0.55));
+        put(2, 3, adjust(C.iris, 0.55));
+        put(1, 2, adjust(C.iris, 0.55));
+        put(3, 2, adjust(C.iris, 0.55));
+        for (let i = 1; i <= 3; i++) put(i, 5, dark(-0.12));
+        break;
       case 'soft': // calm, lightly lowered lids, no harsh whites
         for (let i = 0; i <= 4; i++) put(i, 0, ink);
         put(-1, 1, ink);
@@ -386,6 +439,23 @@ function drawPortraitFeatures(p, spec, F, C, S, H) {
       m(22, 28, dark(-0.16));
       m(25, 28, dark(-0.16));
       break;
+    case 'pout': {
+      const c = F.lip || mix(S, '#c0505a', 0.5);
+      m(23, 29, c);
+      m(24, 29, c);
+      m(23, 30, mix(S, '#e88a90', 0.4));
+      m(24, 30, mix(S, '#e88a90', 0.4));
+      break;
+    }
+    case 'fang': {
+      const c = F.lip || mix(S, '#a04050', 0.55);
+      m(22, 28, c);
+      m(23, 29, c);
+      m(24, 29, c);
+      m(25, 28, c);
+      m(24, 30, '#ffffff');
+      break;
+    }
     case 'cat': {
       const c = F.lip || mix(S, '#a04050', 0.5);
       m(21, 28, c);
@@ -489,6 +559,18 @@ function drawSpriteFeatures(p, spec, F, C, hy) {
       both(2, 1, C.iris);
       both(1, 0, '#ffffff');
       break;
+    case 'cat':
+      both(-1, -1, ink);
+      lash(0, 2);
+      both(1, 1, C.iris);
+      both(2, 1, adjust(C.iris, -0.35));
+      break;
+    case 'gem':
+      lash(0, 2);
+      both(0, 1, WHITE);
+      both(1, 1, '#ffffff');
+      both(2, 1, C.iris);
+      break;
     case 'soft':
       lash(0, 2);
       both(1, 1, C.iris);
@@ -560,6 +642,15 @@ function drawSpriteFeatures(p, spec, F, C, hy) {
         break;
       case 'gentle':
         m(15, 4, F.lip || mix(S, '#c0505a', 0.5));
+        break;
+      case 'pout':
+        m(15, 4, F.lip || mix(S, '#c0505a', 0.5));
+        m(15, 5, mix(S, '#e88a90', 0.4));
+        break;
+      case 'fang':
+        m(14, 4, F.lip || mix(S, '#a04050', 0.55));
+        m(15, 4, F.lip || mix(S, '#a04050', 0.55));
+        m(15, 5, '#ffffff');
         break;
       case 'cat':
         m(14, 4, F.lip || mix(S, '#a04050', 0.5));
@@ -635,7 +726,10 @@ export function drawCharacter(spec, view, frame) {
   const hy = 13 + bob;
   const ty = 20 + bob;
   const handY = ty + 8;
-  const hairStyle = spec.hairStyle || (spec.longHair ? 'long' : 'short');
+  const { style: hairStyle, bangs } = hairInfo(spec);
+  const longish = hairStyle === 'long' || hairStyle === 'hime' || hairStyle === 'wavy';
+  const accent = spec.accent || '#d84a5a';
+  const acc = spec.acc || [];
 
   // --- behind the body
   if (back) drawWeapon(p, spec, C, mx, hy, handY, atk);
@@ -644,7 +738,13 @@ export function drawCharacter(spec, view, frame) {
     p.rect(9, ty + 6, 9, 39, adjust(C.cape, -0.3));
     p.rect(22, ty + 6, 22, 39, adjust(C.cape, -0.3));
   }
-  if (!back && !spec.helmet && !spec.hood && hairStyle === 'long') p.rect(9, hy, 22, hy + 12, adjust(C.hair, -0.28));
+  const bareHead = !spec.helmet && !spec.hood;
+  if (!back && bareHead && longish) p.rect(9, hy, 22, hy + 12, adjust(C.hair, -0.28));
+  if (bareHead && hairStyle === 'twin') {
+    p.rect(5, hy - 1, 8, hy + 11, adjust(C.hair, -0.08));
+    p.rect(23, hy - 1, 26, hy + 11, adjust(C.hair, -0.08));
+  }
+  if (!back && bareHead && hairStyle === 'ponytail') p.rect(22, hy - 4, 24, hy + 7, adjust(C.hair, -0.25));
 
   // --- legs / robe
   if (spec.robe) {
@@ -774,8 +874,17 @@ export function drawCharacter(spec, view, frame) {
     // front hair: cap, jagged fringe and side locks
     p.disc(16, hy - 1.2, 7.0, H, (x, y) => y <= hy - 1);
     const fringe = [2, 1, 3, 1, 2, 0, 2, 3, 1, 2, 1, 2];
-    if (hairStyle !== 'slick') for (let x = 10; x <= 21; x++) p.rect(x, hy - 1, x, hy - 1 + Math.min(fringe[x - 10], x > 12 && x < 19 ? 1 : 3), H);
-    const len = hairStyle === 'long' ? 11 : hairStyle === 'bob' ? 5 : hairStyle === 'slick' ? 0 : 3;
+    for (let x = 10; x <= 21; x++) {
+      const inner = x > 12 && x < 19;
+      let len;
+      if (bangs === 'none') continue;
+      else if (bangs === 'straight') len = inner ? 1 : 3;
+      else if (bangs === 'side') len = Math.min(inner ? 1 : 3, Math.floor((x - 10) / 3));
+      else if (bangs === 'parted') len = Math.min(inner ? 1 : 3, Math.floor(Math.abs(x + 0.5 - 16) / 2));
+      else len = Math.min(fringe[x - 10], inner ? 1 : 3);
+      p.rect(x, hy - 1, x, hy - 1 + len, H);
+    }
+    const len = { long: 11, wavy: 11, hime: 6, bob: 5, slick: 0 }[hairStyle] ?? 3;
     p.rect(9, hy - 2, 10, hy + len, H);
     p.rect(21, hy - 2, 22, hy + len, H);
     if (hairStyle === 'spiky') {
@@ -787,12 +896,15 @@ export function drawCharacter(spec, view, frame) {
       p.line(17, hy - 7, 18, hy - 10, H);
       p.set(19, hy - 10, H);
     }
+    if (hairStyle === 'braid') for (let y = hy + 4; y <= hy + 13; y++) p.rect(10, y, 11, y, y % 2 ? H : adjust(H, -0.2));
     p.line(12, hy - 5, 15, hy - 6, hl, true);
     p.set(16, hy - 6, hl, true);
   } else {
     p.disc(16, hy - 0.8, 7.0, H, (x, y) => y <= hy + 4);
-    if (hairStyle === 'long') p.rect(10, hy + 4, 21, hy + 11, H);
+    if (longish) p.rect(10, hy + 4, 21, hy + 11, H);
     else if (hairStyle === 'bob') p.rect(10, hy + 4, 21, hy + 6, H);
+    else if (hairStyle === 'ponytail') p.rect(14, hy + 3, 17, hy + 13, H);
+    else if (hairStyle === 'braid') for (let y = hy + 4; y <= hy + 13; y++) p.rect(15, y, 16, y, y % 2 ? H : adjust(H, -0.2));
     if (hairStyle === 'spiky') {
       p.line(11, hy - 6, 9, hy - 9, H);
       p.line(17, hy - 7, 18, hy - 10, H);
@@ -806,6 +918,21 @@ export function drawCharacter(spec, view, frame) {
     p.rect(10, hy - 3, 21, hy - 3, spec.circlet);
     if (!back) p.set(15, hy - 3, C.gem, true);
   }
+  if (bareHead && hairStyle === 'twin') {
+    p.rect(6, hy - 1, 7, hy, accent, true);
+    p.rect(24, hy - 1, 25, hy, accent, true);
+  }
+  if (acc.includes('ribbon')) {
+    p.rect(mx(19), hy - 8, mx(19), hy - 6, accent, true);
+    p.rect(mx(21), hy - 8, mx(21), hy - 6, accent, true);
+    p.set(mx(20), hy - 7, adjust(accent, -0.25), true);
+  }
+  if (acc.includes('flower') && !back) {
+    p.set(11, hy - 5, accent, true);
+    p.set(10, hy - 4, accent, true);
+    p.set(12, hy - 4, accent, true);
+    p.set(11, hy - 4, '#ffe27a', true);
+  }
 
   if (!back) {
     if (spec.beard) {
@@ -815,6 +942,11 @@ export function drawCharacter(spec, view, frame) {
       p.rect(15, hy + 4, 16, hy + 4, adjust(C.skin, -0.3));
     }
     if (!spec.visor) drawSpriteFeatures(p, spec, faceOf(spec), C, hy);
+    if (acc.includes('glasses')) {
+      for (const x of [10, 14, 15, 19]) p.set(x, hy + 1, '#4a3a50', true);
+      p.rect(10, hy, 13, hy, '#4a3a50', true);
+      p.rect(16, hy, 19, hy, '#4a3a50', true);
+    }
   }
 
   if (!back) drawWeapon(p, spec, C, mx, hy, handY, atk);
@@ -909,21 +1041,67 @@ export function characterFrames(spec) {
   return { front: make('front'), back: make('back') };
 }
 
-// 48x48 bust portrait for the HUD and dialogue.
-export function drawPortrait(spec) {
-  const p = new PixelCanvas(48, 48);
+// Bust portrait for the HUD and dialogue. res 1 = 48x48; res 2 = 96x96, made by drawing at 48,
+// enlarging with Scale2x (smooths diagonals instead of doubling blocks) and then adding
+// detail that only fits at the higher resolution: finer eye highlights, lash tips, cheek
+// hatching, hair shine, and a 1px outline.
+export function drawPortrait(spec, res = 1) {
   const C = { ...DEFAULT_COLORS, ...spec.colors };
+  const F = faceOf(spec);
+  let p = basePortrait(spec, C, F);
+  if (res >= 2) {
+    p = p.scale2x();
+    polishPortrait(p, spec, C, F);
+    p.shade(0.08, 0.12);
+    p.outline(-0.72);
+  } else {
+    p.shade(0.12, 0.16);
+    p.outline(-0.72);
+  }
+  return p;
+}
+
+function hairInfo(spec) {
+  const style = spec.hairStyle || (spec.longHair ? 'long' : 'short');
+  const bangs = spec.bangs || (style === 'slick' ? 'none' : style === 'hime' ? 'straight' : 'jagged');
+  return { style, bangs };
+}
+
+function basePortrait(spec, C, F) {
+  const p = new PixelCanvas(48, 48);
   const H = C.hair;
   const S = C.skin;
-  const hairStyle = spec.hairStyle || (spec.longHair ? 'long' : 'short');
+  const { style: hairStyle, bangs } = hairInfo(spec);
   const bare = !spec.helmet && !spec.hood;
+  const accent = spec.accent || '#d84a5a';
+  const acc = spec.acc || [];
+  const backH = adjust(H, -0.22);
 
-  // behind: cape and long hair
+  // behind: cape, long hair and tails
   if (spec.cape) p.rect(1, 37, 46, 47, adjust(C.cape, -0.1));
-  if (bare && hairStyle === 'long') {
+  if (bare && (hairStyle === 'long' || hairStyle === 'hime' || hairStyle === 'wavy')) {
     for (let y = 14; y <= 47; y++) {
-      const hw = Math.min(15, 12 + (y - 14) * 0.12);
-      p.rect(Math.round(24 - hw), y, Math.round(23 + hw), y, adjust(H, -0.22));
+      let hw = Math.min(15, 12 + (y - 14) * 0.12);
+      if (hairStyle === 'wavy') hw += Math.sin(y * 0.55) * 1.4;
+      p.rect(Math.round(24 - hw), y, Math.round(23 + hw), y, backH);
+    }
+  }
+  if (bare && hairStyle === 'twin') {
+    for (const s of [-1, 1]) {
+      for (let y = 14; y <= 47; y++) {
+        const t = (y - 14) / 33;
+        const cx = 24 + s * (15.5 + Math.sin(t * Math.PI * 1.2) * 2 + t * 3);
+        const w = 1.8 + Math.sin(Math.min(1, t * 1.3) * Math.PI) * 1.7;
+        p.rect(Math.round(cx - w), y, Math.round(cx + w), y, adjust(H, -0.08));
+        if (y % 7 === 3) p.set(Math.round(cx), y, adjust(H, -0.25));
+      }
+    }
+  }
+  if (bare && hairStyle === 'ponytail') {
+    for (let y = 5; y <= 40; y++) {
+      const cx = 35 + (y - 5) * 0.22 + Math.sin(y / 5) * 0.8;
+      const w = y < 12 ? 1.5 + (y - 5) * 0.4 : Math.max(1, 4.3 - (y - 12) * 0.11);
+      p.rect(Math.round(cx - w), y, Math.round(cx + w), y, backH);
     }
   }
   if (spec.hood) p.disc(24, 22, 15.5, C.hood, (x, y) => y <= 40);
@@ -937,7 +1115,6 @@ export function drawPortrait(spec) {
     p.set(Math.round(24 - Math.min(21, 10 + (y - 34) * 1.1)) + 3, y, adjust(C.armor, 0.12));
     p.set(Math.round(23 + Math.min(21, 10 + (y - 34) * 1.1)) - 3, y, adjust(C.armor, -0.15));
   }
-  // neckline trim and emblem
   p.line(18, 34, 23, 41, C.armor2);
   p.line(29, 34, 24, 41, C.armor2);
   p.line(19, 34, 23, 40, C.armor2);
@@ -966,14 +1143,15 @@ export function drawPortrait(spec) {
   }
 
   // neck and head
+  // skin shadows lean warm (rosy) instead of grey
+  const warm = (t) => mix(S, '#a8584a', t);
   p.rect(20, 29, 27, 35, S);
-  p.rect(20, 31, 27, 32, adjust(S, -0.22));
+  p.rect(20, 31, 27, 32, warm(0.32));
   if (spec.scarf) {
     p.rect(16, 31, 31, 36, spec.scarf);
     p.line(16, 34, 31, 34, adjust(spec.scarf, -0.2));
     p.rect(27, 36, 31, 42, spec.scarf);
   }
-  const F = faceOf(spec);
   const JAW = { normal: [10, 10.5, 31], round: [10.3, 10, 33], square: [10.5, 11, 34], sharp: [9.6, 10.5, 30], long: [10, 11.5, 32] }[F.jaw];
   const face = (x, y) => {
     const dx = (x + 0.5 - 24) / JAW[0];
@@ -1050,18 +1228,29 @@ export function drawPortrait(spec) {
     p.line(17, 8, 30, 8, adjust(C.hood, 0.25), true);
   } else {
     p.disc(24, 17, 12.2, H, (x, y) => y <= 15);
+    // fringe
     const fr = [5, 3, 6, 2, 7, 4, 5, 3, 6, 2, 5, 7, 3, 5, 2, 6, 4, 6, 3, 5, 4, 6];
-    if (hairStyle === 'slick') p.rect(13, 13, 34, 14, H);
-    else
-      for (let x = 13; x <= 34; x++) {
-        const inner = x > 15 && x < 32;
-        p.rect(x, 15, x, 15 + Math.min(fr[x - 13], inner ? 4 : 8), H);
-      }
-    const side = hairStyle === 'long' ? 44 : hairStyle === 'bob' ? 30 : hairStyle === 'slick' ? 21 : 25;
+    for (let x = 13; x <= 34; x++) {
+      const inner = x > 15 && x < 32;
+      let len;
+      if (bangs === 'none') len = -2;
+      else if (bangs === 'straight') len = inner ? 4 : 6;
+      else if (bangs === 'side') len = Math.min(inner ? 5 : 8, Math.round(1 + (x - 13) * 0.32));
+      else if (bangs === 'parted') len = Math.min(inner ? 5 : 8, Math.round(Math.abs(x + 0.5 - 24) * 0.6));
+      else len = Math.min(fr[x - 13], inner ? 4 : 8);
+      p.rect(x, 15, x, 15 + len, H);
+    }
+    if (bangs === 'none') p.rect(13, 13, 34, 14, H);
+    if (bangs === 'side') p.line(16, 12, 30, 19, adjust(H, -0.2));
+    if (bangs === 'parted') p.line(24, 8, 24, 14, adjust(H, -0.3));
+    if (bangs === 'straight') for (const x of [17, 22, 27, 31]) p.set(x, 19, adjust(H, -0.2));
+    // side locks
+    const side = { long: 44, hime: 30, wavy: 44, bob: 30, slick: 21, twin: 27, ponytail: 24, braid: 26 }[hairStyle] || 25;
     for (let y = 14; y <= side; y++) {
-      const w = y > 30 ? 3 + Math.floor((y - 30) / 5) : 3;
-      p.rect(11, y, 11 + w - 1, y, H);
-      p.rect(37 - w, y, 36, y, H);
+      const w = hairStyle === 'hime' ? 3 : y > 30 ? 3 + Math.floor((y - 30) / 5) : 3;
+      const dx = hairStyle === 'wavy' && y > 28 ? Math.round(Math.sin(y * 0.4)) : 0;
+      p.rect(11 + dx, y, 11 + dx + w - 1, y, H);
+      p.rect(37 - w - dx, y, 36 - dx, y, H);
     }
     if (hairStyle === 'spiky') {
       for (const [x0, h, lean] of [[14, 4, -1.2], [20, 5, -0.8], [27, 5, 0.6], [33, 4, 1.2]]) {
@@ -1072,18 +1261,30 @@ export function drawPortrait(spec) {
         }
       }
     }
+    if (hairStyle === 'twin' || hairStyle === 'ponytail') {
+      const ties = hairStyle === 'twin' ? [[8, 15], [39, 15]] : [[36, 8]];
+      for (const [x, y] of ties) p.rect(x - 1, y - 1, x + 1, y + 1, accent, true);
+    }
+    if (hairStyle === 'braid') {
+      for (let k = 0; k < 7; k++) {
+        const cx = 14.5 - k * 0.35;
+        const cy = 28 + k * 2.6;
+        p.disc(cx, cy, 2.4, k % 2 ? adjust(H, -0.08) : H);
+        p.set(Math.round(cx), Math.round(cy + 1.4), adjust(H, -0.3));
+      }
+      p.rect(12, 46, 14, 47, accent, true);
+    }
     if (spec.ahoge) {
       p.line(26, 5, 29, 0, H);
       p.line(27, 5, 30, 1, H);
       p.set(31, 1, H);
     }
-    // strands and highlight band
     for (const x of [18, 23, 28]) p.line(x, 9, x - 1, 18, adjust(H, -0.2));
     p.line(16, 10, 21, 8, hl, true);
     p.line(17, 11, 22, 9, hl, true);
     p.set(26, 8, hl, true);
     p.set(27, 8, hl, true);
-    if (hairStyle === 'long') {
+    if (hairStyle === 'long' || hairStyle === 'wavy') {
       p.line(12, 26, 12, 44, adjust(H, 0.18));
       p.line(35, 26, 35, 44, adjust(H, -0.2));
     }
@@ -1095,11 +1296,43 @@ export function drawPortrait(spec) {
     p.set(23, 14, '#ffffff', true);
   }
   if (spec.monocle) {
-    p.disc(29.5, 23.5, 3.6, C.gold, (x, y) => {
-      const d = Math.hypot(x + 0.5 - 29.5, y + 0.5 - 23.5);
-      return d > 2.6;
-    }, true);
+    p.disc(29.5, 23.5, 3.6, C.gold, (x, y) => Math.hypot(x + 0.5 - 29.5, y + 0.5 - 23.5) > 2.6, true);
     p.line(33, 25, 34, 34, C.gold, true);
+  }
+  // accessories
+  if (acc.includes('glasses')) {
+    const g = '#4a3a50';
+    for (const x0 of [15, 26]) {
+      p.rect(x0, 20, x0 + 6, 20, g, true);
+      p.rect(x0, 26, x0 + 6, 26, g, true);
+      p.rect(x0, 21, x0, 25, g, true);
+      p.rect(x0 + 6, 21, x0 + 6, 25, g, true);
+    }
+    p.rect(22, 22, 25, 22, g, true);
+    p.set(16, 21, '#ffffff', true);
+    p.set(27, 21, '#ffffff', true);
+  }
+  if (acc.includes('ribbon')) {
+    const d = adjust(accent, -0.25);
+    p.disc(30.5, 8.5, 2.4, accent, null, true);
+    p.disc(36.5, 8.5, 2.4, accent, null, true);
+    p.disc(33.5, 9, 1.3, d, null, true);
+    p.line(33, 10, 31, 14, d, true);
+    p.line(34, 10, 36, 14, d, true);
+    p.set(30, 7, adjust(accent, 0.4), true);
+  }
+  if (acc.includes('flower')) {
+    for (let k = 0; k < 5; k++) {
+      const a = (k / 5) * Math.PI * 2 - Math.PI / 2;
+      p.disc(14 + Math.cos(a) * 1.8, 12 + Math.sin(a) * 1.8, 1.3, accent, null, true);
+    }
+    p.disc(14, 12, 1, '#ffe27a', null, true);
+  }
+  if (acc.includes('earrings')) {
+    for (const x of [12, 35]) {
+      p.set(x, 27, adjust(accent, 0.2), true);
+      p.set(x, 28, accent, true);
+    }
   }
 
   // soft shadow under hair, helmet brims and the chin
@@ -1109,18 +1342,67 @@ export function drawPortrait(spec) {
       const i = y * 48 + x;
       if (src[i] !== S || p.locked.has(i)) continue;
       const up = src[i - 48];
-      if (up && up !== S && !p.locked.has(i - 48)) p.px[i] = adjust(S, -0.16);
-      else if (x >= 31) p.px[i] = adjust(S, -0.08);
+      if (up && up !== S && !p.locked.has(i - 48)) p.px[i] = warm(0.24);
+      else if (x >= 31) p.px[i] = warm(0.1);
     }
-  p.shade(0.12, 0.16);
-  p.outline(-0.72);
   return p;
 }
 
-const portraitCache = new Map();
-export function portraitURL(spec) {
-  if (!portraitCache.has(spec)) portraitCache.set(spec, drawPortrait(spec).toCanvas().toDataURL());
-  return portraitCache.get(spec);
+function polishPortrait(p, spec, C, F) {
+  const S = C.skin;
+  const set = (x, y, c) => p.set(x, y, c, true);
+  if (!spec.visor) {
+    const irisShades = new Set([C.iris, adjust(C.iris, 0.3), adjust(C.iris, -0.4)]);
+    const lashed = ['round', 'sparkle', 'soft', 'droopy', 'almond'].includes(F.eyes);
+    for (const [ex, flip] of [[16, false], [27, true]]) {
+      // second, smaller catch-light low in the iris
+      const gx = 2 * ex + (flip ? 3 : 6);
+      for (const gy of [48, 49]) if (irisShades.has(p.get(gx, gy))) { set(gx, gy, '#ffffff'); break; }
+      // iris rim: darken the iris pixels that touch white
+      for (let y = 42; y <= 52; y++)
+        for (let x = 2 * ex - 2; x <= 2 * ex + 11; x++) {
+          const c = p.get(x, y);
+          if (!irisShades.has(c)) continue;
+          if (p.get(x - 1, y) === WHITE || p.get(x + 1, y) === WHITE) set(x, y, adjust(C.iris, -0.25));
+        }
+      // lash tip at the outer corner
+      if (lashed && (spec.fem || F.eyes === 'sparkle' || F.eyes === 'almond')) {
+        const ox = flip ? 2 * (ex + 4) + 2 : 2 * ex - 1;
+        const dir = flip ? 1 : -1;
+        set(ox, 41, C.eye);
+        set(ox + dir, 40, C.eye);
+      }
+    }
+    // cheek hatching over the blush
+    if (F.blush) {
+      const pink = mix(S, '#ff5a6a', 0.55);
+      for (const x0 of [30, 60])
+        for (let k = 0; k < 3; k++) {
+          const x = x0 + 1 + k * 2;
+          set(x + 1, 51, pink);
+          set(x, 52, pink);
+        }
+    }
+  }
+  // fine hair shine on bare heads
+  if (!spec.helmet && !spec.hood) {
+    const shine = adjust(C.hair, 0.5);
+    const pts = [];
+    for (let x = 30; x <= 44; x++) pts.push([x, Math.round(19 - (x - 30) * 0.28)]);
+    for (let x = 50; x <= 55; x++) pts.push([x, 15 + Math.round((x - 50) * 0.2)]);
+    for (const [x, y] of pts) {
+      const c = p.get(x, y);
+      if (c && c !== S && !p.locked.has(y * p.w + x)) set(x, y, shine);
+    }
+  }
+}
+
+const portraitCache = new WeakMap();
+export function portraitURL(spec, res = 1) {
+  let byRes = portraitCache.get(spec);
+  if (!byRes) portraitCache.set(spec, (byRes = new Map()));
+  if (!byRes.has(res)) byRes.set(res, drawPortrait(spec, res).toCanvas().toDataURL());
+  return byRes.get(res);
 }
 
 // ---------------------------------------------------------------- props
