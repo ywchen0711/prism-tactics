@@ -1,5 +1,5 @@
 // Story scenes and the Scales of Conviction vote.
-import { characterFrames } from './pixelart.js';
+import { portraitURL } from './pixelart.js';
 import { SPECS } from './data.js';
 import { sfx } from './audio.js';
 
@@ -15,11 +15,7 @@ const CAST = {
   bard: { name: '巴德', spec: 'general', title: '黑鋼將軍' },
 };
 
-const portraits = {};
-function portrait(id) {
-  if (!portraits[id]) portraits[id] = characterFrames(SPECS[CAST[id].spec]).front[0].toCanvas().toDataURL();
-  return portraits[id];
-}
+const portrait = (id) => portraitURL(SPECS[CAST[id].spec]);
 
 export const INTRO = [
   [null, '鹽之大陸·諾爾維亞。三個國家，靠著鹽與鐵維繫著脆弱的和平。'],

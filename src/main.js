@@ -49,37 +49,88 @@ const canvas = $('view');
 const held = new Set();
 let drag = null;
 
+const touch = matchMedia('(pointer: coarse)').matches;
+document.body.classList.toggle('touch', touch);
+ui.touch = touch;
+
+// Mouse: left click selects, left drag pans, right drag rotates, right click cancels.
+// Touch: tap selects, one finger pans, two fingers pinch to zoom and twist to rotate.
+const pointers = new Map();
+let pinch = null;
+const snapYaw = () => {
+  world.goal.yaw = Math.round((world.goal.yaw - Math.PI / 4) / (Math.PI / 2)) * (Math.PI / 2) + Math.PI / 4;
+};
+const panBy = (dx, dy) => {
+  const k = (world.goal.dist * 0.72) / innerHeight;
+  world.pan(-dx * k, -dy * k * 1.35);
+};
+const twoFinger = () => {
+  const [a, b] = [...pointers.values()];
+  return { d: Math.hypot(b.x - a.x, b.y - a.y), ang: Math.atan2(b.y - a.y, b.x - a.x) };
+};
+
 canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 canvas.addEventListener('pointerdown', (e) => {
-  drag = { x: e.clientX, y: e.clientY, button: e.button, moved: 0 };
   canvas.setPointerCapture(e.pointerId);
+  pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+  if (pointers.size === 2) {
+    pinch = twoFinger();
+    if (drag) drag.multi = true;
+    return;
+  }
+  drag = { x: e.clientX, y: e.clientY, button: e.button, moved: 0, rotated: false, multi: false, touch: e.pointerType !== 'mouse' };
 });
 canvas.addEventListener('pointermove', (e) => {
+  const pt = pointers.get(e.pointerId);
+  if (pt) {
+    pt.x = e.clientX;
+    pt.y = e.clientY;
+  }
+  if (pinch && pointers.size >= 2) {
+    const now = twoFinger();
+    world.zoom(pinch.d / Math.max(1, now.d));
+    let da = now.ang - pinch.ang;
+    if (da > Math.PI) da -= Math.PI * 2;
+    if (da < -Math.PI) da += Math.PI * 2;
+    world.goal.yaw += da;
+    if (Math.abs(da) > 0.001) drag && (drag.rotated = true);
+    pinch = now;
+    return;
+  }
   if (drag) {
     const dx = e.clientX - drag.x;
-    drag.moved += Math.abs(dx) + Math.abs(e.clientY - drag.y);
-    if (drag.button === 2 || drag.button === 1 || (drag.button === 0 && drag.moved > 8 && e.pointerType !== 'mouse')) world.rotateFree(dx);
+    const dy = e.clientY - drag.y;
+    drag.moved += Math.abs(dx) + Math.abs(dy);
+    if (drag.button === 2 || drag.button === 1) {
+      world.rotateFree(dx);
+      drag.rotated = true;
+    } else if (drag.moved > 8 && !drag.multi) panBy(dx, dy);
     drag.x = e.clientX;
     drag.y = e.clientY;
-    return;
+    if (drag.touch) return;
   }
-  if (battle) battle.onHover(world.pick(e.clientX, e.clientY));
+  if (battle && e.pointerType === 'mouse') battle.onHover(world.pick(e.clientX, e.clientY));
 });
-canvas.addEventListener('pointerup', (e) => {
-  if (!drag) return;
+const endPointer = (e) => {
+  pointers.delete(e.pointerId);
+  if (pointers.size < 2 && pinch) {
+    pinch = null;
+    snapYaw();
+  }
+  if (!drag || pointers.size > 0) return;
   const d = drag;
   drag = null;
-  if (d.moved > 8) {
-    world.goal.yaw = Math.round((world.goal.yaw - Math.PI / 4) / (Math.PI / 2)) * (Math.PI / 2) + Math.PI / 4;
-    return;
-  }
+  if (d.rotated) snapYaw();
+  if (d.moved > 8 || d.multi || e.type === 'pointercancel') return;
   if (!battle) return;
   const pick = world.pick(e.clientX, e.clientY);
   if (d.button === 0) {
     battle.onHover(pick);
-    battle.onClick(pick);
+    battle.onClick(pick, d.touch);
   } else if (d.button === 2) battle.cancel();
-});
+};
+canvas.addEventListener('pointerup', endPointer);
+canvas.addEventListener('pointercancel', endPointer);
 canvas.addEventListener('wheel', (e) => world.zoom(e.deltaY > 0 ? 1.1 : 0.9), { passive: true });
 
 window.addEventListener('keydown', (e) => {
@@ -107,6 +158,8 @@ $('muteBtn').addEventListener('click', () => {
 });
 $('rotL').addEventListener('click', () => world.rotate(-1));
 $('rotR').addEventListener('click', () => world.rotate(1));
+$('cancelBtn').addEventListener('click', () => battle && battle.cancel());
+$('confirmBtn').addEventListener('click', () => battle && battle.confirm());
 
 // ------------------------------------------------------------------ flow
 function show(id, on) {

@@ -50,6 +50,11 @@ export class UI {
     $('unitPanel').classList.toggle('show', !!u);
   }
 
+  setActions({ cancel = false, confirm = false }) {
+    $('cancelBtn').classList.toggle('show', cancel);
+    $('confirmBtn').classList.toggle('show', confirm);
+  }
+
   setHover(u) {
     const el = $('hoverPanel');
     if (!u || u === this.active) {
@@ -181,7 +186,7 @@ export class UI {
     const v = new THREE.Vector3();
     for (const [u, el] of this.labels) {
       v.copy(u.view.group.position);
-      v.y += 32 * (1 / 18) * u.view.baseScale + 0.05;
+      v.y += u.view.height() + 0.05;
       const s = this.world.project(v);
       el.style.transform = `translate(${s.x}px, ${s.y}px) translate(-50%, -100%)`;
       el.style.display = s.visible ? '' : 'none';
@@ -197,6 +202,7 @@ export class UI {
     this.setHover(null);
     this.clearMenu();
     this.setPreview(null);
+    this.setActions({});
     this.hint('');
     $('turnOrder').innerHTML = '';
     $('log').innerHTML = '';

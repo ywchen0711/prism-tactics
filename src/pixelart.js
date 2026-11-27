@@ -122,6 +122,7 @@ export function pixelTex(cv, { mip = false, repeat = false } = {}) {
 
 const DEFAULT_COLORS = {
   eye: '#2a1d33',
+  iris: '#3a6ab0',
   metal: '#c8ced8',
   wood: '#6a4528',
   gem: '#9ff0ff',
@@ -131,94 +132,230 @@ const DEFAULT_COLORS = {
   plume: '#eeeeee',
   pants: '#333038',
   boots: '#2a2020',
+  gold: '#e8c860',
 };
 
-// 24x32 chibi-proportioned humanoid. view: 'front' (facing camera, turned left) | 'back'.
-// frame: 0 | 1 (idle bob) | 'atk'.
+const WHITE = '#f6f2ea';
+const blush = (skin) => {
+  const [r, g, b] = hexToRgb(skin);
+  return rgbToHex(r * 0.7 + 255 * 0.3, g * 0.72 + 120 * 0.28, b * 0.72 + 130 * 0.28);
+};
+
+export const CHAR_W = 32;
+export const CHAR_H = 44;
+
+// 32x44 chibi-proportioned humanoid. view: 'front' (facing camera, turned left) | 'back'.
+// frame: 0 | 1 (idle breath) | 'atk'.
 export function drawCharacter(spec, view, frame) {
-  const p = new PixelCanvas(24, 32);
+  const p = new PixelCanvas(CHAR_W, CHAR_H);
   const C = { ...DEFAULT_COLORS, ...spec.colors };
   const back = view === 'back';
   const bob = frame === 1 ? 1 : 0;
   const atk = frame === 'atk';
-  const mx = (x) => (back ? 23 - x : x);
-  const hy = 9 + bob;
-  const ty = 15 + bob;
+  const mx = (x) => (back ? CHAR_W - 1 - x : x);
+  const hy = 13 + bob;
+  const ty = 20 + bob;
   const handY = ty + 8;
+  const hairStyle = spec.hairStyle || (spec.longHair ? 'long' : 'short');
 
+  // --- behind the body
   if (back) drawWeapon(p, spec, C, mx, hy, handY, atk);
-  if (spec.cape && !back) p.rect(7, ty + 1, 16, 26, adjust(C.cape, -0.25));
+  if (spec.cape && !back) {
+    p.rect(10, ty + 1, 21, 40, adjust(C.cape, -0.3));
+    p.rect(9, ty + 6, 9, 39, adjust(C.cape, -0.3));
+    p.rect(22, ty + 6, 22, 39, adjust(C.cape, -0.3));
+  }
+  if (!back && !spec.helmet && !spec.hood && hairStyle === 'long') p.rect(9, hy, 22, hy + 12, adjust(C.hair, -0.28));
 
+  // --- legs / robe
   if (spec.robe) {
-    for (let y = ty + 6; y <= 29; y++) {
-      const hw = Math.min(6, Math.floor(4 + (y - ty - 6) * 0.25));
-      p.rect(12 - hw, y, 11 + hw, y, y >= 28 ? C.armor2 : C.armor);
+    for (let y = ty + 6; y <= 41; y++) {
+      const hw = Math.min(8, Math.floor(5 + (y - ty - 6) * 0.22));
+      p.rect(16 - hw, y, 15 + hw, y, y >= 40 ? C.armor2 : C.armor);
     }
-    p.rect(9, 30, 10, 30, C.boots);
-    p.rect(13, 30, 14, 30, C.boots);
+    if (!back) {
+      p.rect(15, ty + 7, 16, 39, C.armor2);
+      p.line(12, ty + 10, 10, 39, adjust(C.armor, -0.18));
+      p.line(19, ty + 10, 21, 39, adjust(C.armor, -0.18));
+    } else {
+      p.line(15, ty + 8, 14, 39, adjust(C.armor, -0.18));
+    }
+    p.rect(12, 42, 14, 42, C.boots);
+    p.rect(17, 42, 19, 42, C.boots);
   } else {
-    p.rect(9, ty + 8, 10, 27, C.pants);
-    p.rect(13, ty + 8, 14, 27, C.pants);
-    p.rect(8, 28, 10, 30, C.boots);
-    p.rect(13, 28, 15, 30, C.boots);
+    p.rect(12, ty + 9, 14, 38, C.pants);
+    p.rect(17, ty + 9, 19, 38, C.pants);
+    p.set(12, 33, adjust(C.pants, 0.18));
+    p.set(17, 33, adjust(C.pants, 0.18));
+    p.rect(11, 38, 14, 42, C.boots);
+    p.rect(17, 38, 20, 42, C.boots);
+    p.rect(11, 38, 14, 38, adjust(C.boots, 0.2));
+    p.rect(17, 38, 20, 38, adjust(C.boots, 0.2));
+    p.rect(11, 42, 14, 42, adjust(C.boots, -0.35));
+    p.rect(17, 42, 20, 42, adjust(C.boots, -0.35));
   }
 
-  p.rect(6, ty + 1, 7, handY - 1, C.armor2);
-  p.rect(16, ty + 1, 17, handY - 1, C.armor2);
-  p.rect(6, handY, 7, handY, C.skin);
-  p.rect(16, handY, 17, handY, C.skin);
+  // --- arms and torso
+  p.rect(9, ty + 1, 10, handY - 1, C.armor2);
+  p.rect(21, ty + 1, 22, handY - 1, C.armor2);
+  p.rect(9, ty + 4, 10, ty + 4, adjust(C.armor2, -0.2));
+  p.rect(21, ty + 4, 22, ty + 4, adjust(C.armor2, -0.2));
+  p.rect(9, handY, 10, handY + 1, C.skin);
+  p.rect(21, handY, 22, handY + 1, C.skin);
 
-  p.rect(8, ty, 15, ty + 8, C.armor);
-  p.rect(8, ty + 7, 15, ty + 7, C.belt || C.armor2);
-  if (!back) p.rect(11, ty + 1, 12, ty + 4, C.armor2);
+  p.rect(11, ty, 20, ty + 9, C.armor);
+  p.rect(10, ty, 21, ty + 1, C.armor);
+  for (let y = ty + 2; y <= ty + 7; y++) {
+    p.set(12, y, adjust(C.armor, 0.14));
+    p.set(19, y, adjust(C.armor, -0.16));
+  }
+  p.rect(11, ty + 8, 20, ty + 8, C.belt || adjust(C.armor2, -0.3));
+  if (!back) {
+    p.line(13, ty, 15, ty + 3, C.armor2);
+    p.line(18, ty, 16, ty + 3, C.armor2);
+    p.set(14, ty, C.skin);
+    p.set(15, ty, C.skin);
+    p.set(16, ty, C.skin);
+    p.set(17, ty, C.skin);
+    p.set(15, ty + 1, C.skin);
+    p.set(16, ty + 1, C.skin);
+    if (spec.emblem !== false) p.rect(15, ty + 5, 16, ty + 6, C.armor2);
+    p.rect(15, ty + 8, 16, ty + 8, C.gold, true);
+  }
+  if (spec.scarf) {
+    p.rect(12, ty - 1, 19, ty + 1, spec.scarf);
+    if (back) p.rect(17, ty + 2, 18, ty + 7, spec.scarf);
+    else p.rect(18, ty + 2, 19, ty + 5, spec.scarf);
+  }
   if (spec.pauldrons) {
-    p.rect(5, ty, 8, ty + 1, C.metal);
-    p.rect(15, ty, 18, ty + 1, C.metal);
+    for (const cx of [10, 21]) {
+      p.disc(cx + 0.5, ty + 1.5, 2.6, C.metal, (x, y) => y <= ty + 3);
+      p.set(cx - 1, ty, adjust(C.metal, 0.35), true);
+    }
   }
   if (spec.cape && back) {
-    p.rect(7, ty, 16, 27, C.cape);
-    p.line(10, ty + 2, 9, 27, adjust(C.cape, -0.2));
-    p.line(14, ty + 2, 15, 27, adjust(C.cape, -0.2));
-  }
-
-  p.rect(11, ty - 1, 12, ty - 1, C.skin);
-  p.disc(12, hy, 4.6, C.skin);
-
-  if (spec.helmet) {
-    if (!back) {
-      p.disc(12, hy - 0.4, 5.0, C.metal, (x, y) => y <= hy - 1);
-      p.rect(7, hy - 1, 7, hy + 3, C.metal);
-      p.rect(15, hy - 1, 16, hy + 3, C.metal);
-      p.rect(8, hy - 1, 15, hy - 1, adjust(C.metal, -0.25));
-    } else {
-      p.disc(12, hy - 0.2, 5.0, C.metal, (x, y) => y <= hy + 3);
+    for (let y = ty; y <= 40; y++) {
+      const hw = Math.min(7, 6 + Math.floor((y - ty) / 12));
+      p.rect(16 - hw, y, 15 + hw, y, C.cape);
     }
-    if (spec.plume) p.rect(11, hy - 8, 12, hy - 5, C.plume);
-  } else if (spec.hood) {
-    p.disc(12, hy - 0.2, 5.3, C.hood, (x, y) => y <= hy + 4);
-    if (!back) p.disc(11.5, hy + 1.0, 3.3, C.skin, (x, y) => y >= hy - 1);
-  } else if (!back) {
-    const len = spec.longHair ? 6 : 2;
-    p.disc(12, hy - 0.8, 5.0, C.hair, (x, y) => y <= hy - 1);
-    p.rect(7, hy - 1, 7, hy + len, C.hair);
-    p.rect(15, hy - 1, 16, hy + len, C.hair);
-    p.set(9, hy, C.hair);
-    p.set(13, hy, C.hair);
-    p.set(14, hy, C.hair);
-  } else {
-    p.disc(12, hy - 0.5, 5.0, C.hair, (x, y) => y <= hy + 3);
-    if (spec.longHair) p.rect(8, hy + 3, 15, hy + 8, C.hair);
+    p.line(12, ty + 3, 11, 40, adjust(C.cape, -0.22));
+    p.line(16, ty + 3, 16, 40, adjust(C.cape, -0.22));
+    p.line(19, ty + 3, 20, 40, adjust(C.cape, -0.22));
+    p.rect(10, ty, 21, ty, C.armor2);
   }
-  if (spec.beard && !back) p.rect(9, hy + 3, 13, hy + 4, C.hair);
+
+  // --- head
+  p.rect(15, ty - 1, 16, ty - 1, C.skin);
+  p.disc(16, hy, 6.4, C.skin);
+
+  const H = C.hair;
+  const hl = adjust(H, 0.32);
+  if (spec.helmet) {
+    const M = C.metal;
+    if (!back) {
+      p.disc(16, hy - 0.6, 7.0, M, (x, y) => y <= hy - 1);
+      p.rect(9, hy - 1, 22, hy - 1, adjust(M, -0.3));
+      p.rect(9, hy, 10, hy + 4, M);
+      p.rect(21, hy, 22, hy + 4, M);
+      p.set(12, hy - 5, adjust(M, 0.4), true);
+      p.set(13, hy - 6, adjust(M, 0.4), true);
+      if (spec.visor) {
+        p.rect(11, hy, 20, hy + 2, adjust(M, -0.15));
+        p.rect(11, hy + 1, 20, hy + 1, '#141018', true);
+        p.set(13, hy + 1, '#ff5a3a', true);
+        p.set(17, hy + 1, '#ff5a3a', true);
+      }
+    } else {
+      p.disc(16, hy - 0.3, 7.0, M, (x, y) => y <= hy + 4);
+      p.set(19, hy - 5, adjust(M, 0.4), true);
+    }
+    if (spec.horns) {
+      const bone = '#e6dcc4';
+      p.line(9, hy - 2, 6, hy - 5, bone);
+      p.line(6, hy - 5, 6, hy - 8, bone);
+      p.line(22, hy - 2, 25, hy - 5, bone);
+      p.line(25, hy - 5, 25, hy - 8, bone);
+    }
+    if (spec.plume) {
+      p.rect(15, hy - 10, 16, hy - 7, C.plume);
+      p.rect(17, hy - 11, 19, hy - 9, C.plume);
+      p.set(20, hy - 10, C.plume);
+    }
+  } else if (spec.hood) {
+    p.disc(16, hy - 0.2, 7.2, C.hood, (x, y) => y <= hy + 6);
+    if (!back) {
+      p.disc(15.5, hy + 1.4, 4.5, C.skin, (x, y) => y >= hy - 2);
+      p.rect(12, hy - 2, 19, hy - 2, spec.colors.hair ? H : adjust(C.hood, -0.35));
+      p.set(13, hy - 1, spec.colors.hair ? H : adjust(C.skin, -0.3));
+      p.set(18, hy - 1, spec.colors.hair ? H : adjust(C.skin, -0.3));
+    } else {
+      p.line(16, hy - 6, 16, hy + 5, adjust(C.hood, -0.2));
+    }
+  } else if (!back) {
+    // front hair: cap, jagged fringe and side locks
+    p.disc(16, hy - 1.2, 7.0, H, (x, y) => y <= hy - 1);
+    const fringe = [2, 1, 3, 1, 2, 0, 2, 3, 1, 2, 1, 2];
+    if (hairStyle !== 'slick') for (let x = 10; x <= 21; x++) p.rect(x, hy - 1, x, hy - 1 + Math.min(fringe[x - 10], x > 12 && x < 19 ? 1 : 3), H);
+    const len = hairStyle === 'long' ? 11 : hairStyle === 'bob' ? 5 : hairStyle === 'slick' ? 0 : 3;
+    p.rect(9, hy - 2, 10, hy + len, H);
+    p.rect(21, hy - 2, 22, hy + len, H);
+    if (hairStyle === 'spiky') {
+      p.line(11, hy - 6, 9, hy - 9, H);
+      p.line(15, hy - 7, 14, hy - 10, H);
+      p.line(20, hy - 6, 22, hy - 9, H);
+    }
+    if (spec.ahoge) {
+      p.line(17, hy - 7, 18, hy - 10, H);
+      p.set(19, hy - 10, H);
+    }
+    p.line(12, hy - 5, 15, hy - 6, hl, true);
+    p.set(16, hy - 6, hl, true);
+  } else {
+    p.disc(16, hy - 0.8, 7.0, H, (x, y) => y <= hy + 4);
+    if (hairStyle === 'long') p.rect(10, hy + 4, 21, hy + 11, H);
+    else if (hairStyle === 'bob') p.rect(10, hy + 4, 21, hy + 6, H);
+    if (hairStyle === 'spiky') {
+      p.line(11, hy - 6, 9, hy - 9, H);
+      p.line(17, hy - 7, 18, hy - 10, H);
+      p.line(21, hy - 6, 23, hy - 9, H);
+    }
+    p.line(17, hy - 5, 20, hy - 4, hl, true);
+    p.line(14, hy - 2, 14, hy + 3, adjust(H, -0.2));
+    p.line(18, hy - 2, 18, hy + 3, adjust(H, -0.2));
+  }
+  if (spec.circlet) {
+    p.rect(10, hy - 3, 21, hy - 3, spec.circlet);
+    if (!back) p.set(15, hy - 3, C.gem, true);
+  }
 
   if (!back) {
-    p.set(9, hy + 1, C.eye, true);
-    p.set(12, hy + 1, C.eye, true);
+    if (spec.beard) {
+      p.rect(13, hy + 3, 18, hy + 3, H);
+      p.rect(12, hy + 4, 19, hy + 5, H);
+      p.rect(14, hy + 6, 17, hy + 6, H);
+      p.rect(15, hy + 4, 16, hy + 4, adjust(C.skin, -0.3));
+    }
+    if (!spec.visor) {
+      // eyes: lash line, iris and a catch-light
+      p.rect(11, hy + 1, 13, hy + 1, C.eye, true);
+      p.rect(16, hy + 1, 18, hy + 1, C.eye, true);
+      p.set(11, hy + 2, WHITE, true);
+      p.set(12, hy + 2, C.iris, true);
+      p.set(13, hy + 2, adjust(C.iris, -0.35), true);
+      p.set(16, hy + 2, C.iris, true);
+      p.set(17, hy + 2, adjust(C.iris, -0.35), true);
+      p.set(18, hy + 2, WHITE, true);
+      if (!spec.beard) p.set(15, hy + 4, adjust(C.skin, -0.3), true);
+      if (spec.fem) {
+        p.set(10, hy + 3, blush(C.skin), true);
+        p.set(19, hy + 3, blush(C.skin), true);
+      }
+    }
   }
 
   if (!back) drawWeapon(p, spec, C, mx, hy, handY, atk);
-  p.shade();
-  p.outline();
+  p.shade(0.16, 0.2);
+  p.outline(-0.7);
   return p;
 }
 
@@ -229,57 +366,73 @@ function drawWeapon(p, spec, C, mx, hy, handY, atk) {
   const line = (x0, y0, x1, y1, c, l) => p.line(mx(x0), y0, mx(x1), y1, c, l);
   const rect = (x0, y0, x1, y1, c, l) => p.rect(Math.min(mx(x0), mx(x1)), y0, Math.max(mx(x0), mx(x1)), y1, c, l);
   const blade = '#e8eef7';
+  const edge = '#a8b4c6';
   switch (spec.weapon) {
     case 'sword':
       if (!atk) {
-        line(18, handY - 10, 18, handY - 1, blade);
-        rect(17, handY, 19, handY, C.armor2);
-        set(18, handY + 1, W);
+        line(24, handY - 13, 24, handY - 2, blade);
+        line(25, handY - 12, 25, handY - 2, edge);
+        set(24, handY - 14, blade);
+        rect(22, handY - 1, 27, handY - 1, C.gold);
+        rect(24, handY, 25, handY + 2, W);
+        set(24, handY + 3, C.gold);
       } else {
-        line(18, handY - 1, 22, handY - 9, blade);
-        rect(16, handY, 18, handY, C.armor2);
-        set(17, handY + 1, W);
+        line(24, handY - 2, 30, handY - 12, blade);
+        line(25, handY - 2, 31, handY - 12, edge);
+        rect(21, handY - 1, 25, handY - 1, C.gold);
+        rect(22, handY, 23, handY + 1, W);
       }
       break;
     case 'spear':
       if (!atk) {
-        line(19, 5, 19, 29, W);
-        rect(18, 2, 20, 4, M);
-        set(19, 1, M);
+        line(24, 6, 24, 41, W);
+        rect(23, 3, 25, 5, M);
+        set(24, 1, M);
+        set(24, 2, M);
+        rect(23, 6, 25, 6, C.armor2);
       } else {
-        line(4, handY, 20, handY, W);
-        rect(20, handY - 1, 21, handY + 1, M);
-        set(22, handY, M);
+        line(4, handY, 26, handY, W);
+        rect(26, handY - 1, 28, handY + 1, M);
+        set(29, handY, M);
+        set(30, handY, M);
+        rect(25, handY - 1, 25, handY + 1, C.armor2);
       }
       break;
     case 'bow':
-      for (let i = 0; i <= 14; i++) {
-        const y = handY - 8 + i;
-        set(19 + Math.round(2 * Math.sin((Math.PI * i) / 14)), y, W);
+      for (let i = 0; i <= 20; i++) {
+        const y = handY - 11 + i;
+        set(24 + Math.round(3 * Math.sin((Math.PI * i) / 20)), y, W);
       }
-      line(19, handY - 8, 19, handY + 6, '#e9e2c8');
+      line(24, handY - 11, 24, handY + 9, '#e9e2c8');
+      set(27, handY, C.armor2);
       if (atk) {
-        line(12, handY - 1, 21, handY - 1, '#d9c9a0');
-        set(22, handY - 1, M);
+        line(14, handY - 1, 27, handY - 1, '#d9c9a0');
+        set(28, handY - 1, M);
+        set(29, handY - 1, M);
       }
       break;
     case 'staff':
-      line(19, hy - 3, 19, 29, W);
-      p.disc(mx(19) + 0.5, hy - 4.5, atk ? 2.4 : 1.7, C.gem, null, true);
+      line(24, hy - 4, 24, 41, W);
+      p.disc(mx(24) + 0.5, hy - 6, atk ? 3.0 : 2.2, C.gem, null, true);
+      set(23, hy - 7, '#ffffff', true);
+      rect(23, hy - 3, 25, hy - 3, C.gold);
       if (atk) {
-        set(16, hy - 8, '#ffffff', true);
-        set(22, hy - 3, '#ffffff', true);
-        set(21, hy - 9, '#ffffff', true);
+        set(20, hy - 11, '#ffffff', true);
+        set(28, hy - 4, '#ffffff', true);
+        set(27, hy - 12, '#ffffff', true);
       }
       break;
     case 'axe':
       if (!atk) {
-        line(19, handY - 9, 19, handY + 3, W);
-        rect(20, handY - 9, 22, handY - 5, M);
-        set(20, handY - 4, M);
+        line(24, handY - 12, 24, handY + 4, W);
+        rect(25, handY - 12, 28, handY - 6, M);
+        set(29, handY - 11, M);
+        set(29, handY - 7, M);
+        line(28, handY - 12, 28, handY - 6, adjust(M, 0.35));
       } else {
-        line(14, handY - 1, 20, handY - 9, W);
-        rect(19, handY - 13, 22, handY - 9, M);
+        line(18, handY - 1, 25, handY - 11, W);
+        rect(24, handY - 16, 28, handY - 10, M);
+        line(28, handY - 16, 28, handY - 10, adjust(M, 0.35));
       }
       break;
     default:
@@ -290,6 +443,258 @@ function drawWeapon(p, spec, C, mx, hy, handY, atk) {
 export function characterFrames(spec) {
   const make = (view) => [drawCharacter(spec, view, 0), drawCharacter(spec, view, 1), drawCharacter(spec, view, 'atk')];
   return { front: make('front'), back: make('back') };
+}
+
+// 48x48 bust portrait for the HUD and dialogue.
+export function drawPortrait(spec) {
+  const p = new PixelCanvas(48, 48);
+  const C = { ...DEFAULT_COLORS, ...spec.colors };
+  const H = C.hair;
+  const S = C.skin;
+  const hairStyle = spec.hairStyle || (spec.longHair ? 'long' : 'short');
+  const bare = !spec.helmet && !spec.hood;
+
+  // behind: cape and long hair
+  if (spec.cape) p.rect(1, 37, 46, 47, adjust(C.cape, -0.1));
+  if (bare && hairStyle === 'long') {
+    for (let y = 14; y <= 47; y++) {
+      const hw = Math.min(15, 12 + (y - 14) * 0.12);
+      p.rect(Math.round(24 - hw), y, Math.round(23 + hw), y, adjust(H, -0.22));
+    }
+  }
+  if (spec.hood) p.disc(24, 22, 15.5, C.hood, (x, y) => y <= 40);
+
+  // torso
+  for (let y = 34; y <= 47; y++) {
+    const hw = Math.min(21, 10 + (y - 34) * 1.1);
+    p.rect(Math.round(24 - hw), y, Math.round(23 + hw), y, C.armor);
+  }
+  for (let y = 37; y <= 47; y++) {
+    p.set(Math.round(24 - Math.min(21, 10 + (y - 34) * 1.1)) + 3, y, adjust(C.armor, 0.12));
+    p.set(Math.round(23 + Math.min(21, 10 + (y - 34) * 1.1)) - 3, y, adjust(C.armor, -0.15));
+  }
+  // neckline trim and emblem
+  p.line(18, 34, 23, 41, C.armor2);
+  p.line(29, 34, 24, 41, C.armor2);
+  p.line(19, 34, 23, 40, C.armor2);
+  p.line(28, 34, 24, 40, C.armor2);
+  if (spec.robe) {
+    p.rect(17, 33, 30, 35, C.armor2);
+    p.rect(23, 36, 24, 47, C.armor2);
+  }
+  if (spec.emblem !== false) {
+    p.disc(24, 44.5, 1.8, C.gem, null, true);
+    p.set(23, 44, '#ffffff', true);
+  }
+  if (spec.pauldrons) {
+    for (const cx of [10, 38]) {
+      p.disc(cx, 40, 6.5, C.metal, (x, y) => y <= 44);
+      p.line(cx - 4, 37, cx + 3, 36, adjust(C.metal, 0.35), true);
+      p.rect(cx - 6, 43, cx + 6, 44, adjust(C.metal, -0.25));
+    }
+  }
+  if (spec.hood) {
+    for (let y = 31; y <= 39; y++) {
+      const hw = 11 + (y - 31) * 1.3;
+      p.rect(Math.round(24 - hw), y, Math.round(23 + hw), y, C.hood);
+    }
+    p.line(12, 38, 35, 38, adjust(C.hood, -0.25));
+  }
+
+  // neck and head
+  p.rect(20, 29, 27, 35, S);
+  p.rect(20, 31, 27, 32, adjust(S, -0.22));
+  if (spec.scarf) {
+    p.rect(16, 31, 31, 36, spec.scarf);
+    p.line(16, 34, 31, 34, adjust(spec.scarf, -0.2));
+    p.rect(27, 36, 31, 42, spec.scarf);
+  }
+  const face = (x, y) => {
+    const dx = (x + 0.5 - 24) / 10;
+    const dy = (y + 0.5 - 21) / (y > 21 ? 10.5 : 11);
+    return dx * dx + dy * dy <= 1 && !(y >= 29 && Math.abs(x + 0.5 - 24) > 31 - y);
+  };
+  for (let y = 9; y <= 32; y++) for (let x = 13; x <= 34; x++) if (face(x, y)) p.set(x, y, S);
+  if (bare) {
+    p.rect(13, 21, 13, 24, S);
+    p.rect(34, 21, 34, 24, S);
+    p.set(13, 22, adjust(S, -0.2));
+    p.set(34, 22, adjust(S, -0.2));
+  }
+
+  // eyes
+  const eye = (ex, flip) => {
+    const at = (i) => (flip ? ex + 4 - i : ex + i);
+    const ey = 21;
+    for (let i = 0; i <= 4; i++) p.set(at(i), ey, C.eye, true);
+    p.set(at(-1), ey - (spec.fem ? 1 : 0), C.eye, true);
+    for (let r = 1; r <= 3; r++) {
+      const iris = r === 1 ? adjust(C.iris, -0.4) : r === 2 ? C.iris : adjust(C.iris, 0.3);
+      for (let i = 1; i <= 3; i++) p.set(at(i), ey + r, iris, true);
+    }
+    p.set(at(0), ey + 1, WHITE, true);
+    p.set(at(0), ey + 2, WHITE, true);
+    p.set(at(4), ey + 1, WHITE, true);
+    p.set(at(4), ey + 2, WHITE, true);
+    p.set(flip ? ex + 2 : ex + 1, ey + 1, '#ffffff', true);
+    p.set(at(2), ey + 2, adjust(C.iris, -0.55), true);
+    for (let i = 1; i <= 3; i++) p.set(at(i), ey + 4, adjust(S, -0.14), true);
+    // brow
+    const bc = adjust(spec.helmet || spec.hood ? '#4a3a30' : H, -0.25);
+    if (spec.stern) {
+      p.line(at(0), 17, at(4), 19, bc, true);
+      p.line(at(0), 18, at(4), 20, bc, true);
+    } else {
+      p.rect(Math.min(at(0), at(3)), 18, Math.max(at(0), at(3)), 18, bc, true);
+    }
+  };
+  if (!spec.visor) {
+    eye(16, false);
+    eye(27, true);
+    p.set(24, 26, adjust(S, -0.2), true);
+    p.set(25, 27, adjust(S, -0.26), true);
+    if (spec.fem) {
+      p.rect(23, 29, 24, 29, adjust(S, -0.38), true);
+      p.rect(15, 26, 17, 26, blush(S), true);
+      p.rect(30, 26, 32, 26, blush(S), true);
+    } else {
+      p.rect(22, 29, 25, 29, adjust(S, -0.38), true);
+      if (spec.stern) p.set(21, 30, adjust(S, -0.3), true);
+    }
+    if (spec.scar) p.line(29, 18, 32, 26, adjust(S, -0.35), true);
+  }
+  if (spec.beard) {
+    for (let y = 27; y <= 35; y++) {
+      const hw = y < 29 ? 9 : 9 - (y - 29) * 1.2;
+      p.rect(Math.round(24 - hw), y, Math.round(23 + hw), y, H);
+    }
+    p.rect(21, 28, 26, 28, adjust(H, 0.2));
+    p.rect(22, 30, 25, 30, adjust(S, -0.4), true);
+    p.line(16, 31, 20, 34, adjust(H, -0.2));
+    p.line(31, 31, 27, 34, adjust(H, -0.2));
+  }
+
+  // hair / headgear
+  const hl = adjust(H, 0.35);
+  if (spec.helmet) {
+    const M = C.metal;
+    p.disc(24, 18, 13, M, (x, y) => y <= 19);
+    p.rect(11, 19, 36, 20, adjust(M, -0.3));
+    p.rect(11, 20, 15, 31, M);
+    p.rect(32, 20, 36, 31, M);
+    p.rect(11, 29, 15, 31, adjust(M, -0.2));
+    p.rect(32, 29, 36, 31, adjust(M, -0.2));
+    p.rect(23, 6, 24, 18, adjust(M, 0.2));
+    p.line(15, 11, 19, 7, adjust(M, 0.45), true);
+    p.line(16, 12, 20, 8, adjust(M, 0.3), true);
+    for (const x of [14, 33]) p.set(x, 24, adjust(M, 0.5), true);
+    if (spec.visor) {
+      p.rect(15, 20, 32, 27, adjust(M, -0.1));
+      p.rect(16, 22, 31, 23, '#120e16', true);
+      p.rect(18, 22, 20, 22, '#ff5a3a', true);
+      p.rect(27, 22, 29, 22, '#ff5a3a', true);
+      for (let x = 17; x <= 30; x += 3) p.set(x, 26, adjust(M, -0.4), true);
+    }
+    if (spec.horns) {
+      const bone = '#e6dcc4';
+      for (const s of [-1, 1]) {
+        for (let i = 0; i < 9; i++) {
+          const x = 24 + s * (12 + i * 0.7);
+          const y = 14 - i * 1.1 - (i > 5 ? (i - 5) * 0.6 : 0);
+          p.disc(x, y, Math.max(0.8, 2.2 - i * 0.18), i > 6 ? adjust(bone, -0.15) : bone);
+        }
+      }
+    }
+    if (spec.plume) {
+      for (let i = 0; i < 10; i++) p.disc(25 + i * 1.4, 6 - Math.sin(i / 3) * 3 + i * 0.4, 2.6 - i * 0.12, C.plume);
+      p.line(26, 4, 36, 6, adjust(C.plume, 0.3), true);
+    }
+  } else if (spec.hood) {
+    if (spec.colors.hair) {
+      const fr = [3, 5, 2, 6, 4, 3, 5, 2, 4, 6, 3, 4, 5, 2, 4, 3, 5, 2];
+      for (let x = 15; x <= 32; x++) p.rect(x, 12, x, 13 + fr[x - 15], H);
+      p.line(18, 13, 21, 13, hl, true);
+    }
+    p.disc(24, 22, 15.5, C.hood, (x, y) => {
+      const dx = (x + 0.5 - 24) / 10.5;
+      const dy = (y + 0.5 - 24) / 12;
+      return y <= 34 && dx * dx + dy * dy > 1;
+    });
+    p.line(13, 10, 9, 33, adjust(C.hood, -0.2));
+    p.line(34, 10, 38, 33, adjust(C.hood, -0.2));
+    p.line(17, 8, 30, 8, adjust(C.hood, 0.25), true);
+  } else {
+    p.disc(24, 17, 12.2, H, (x, y) => y <= 15);
+    const fr = [5, 3, 6, 2, 7, 4, 5, 3, 6, 2, 5, 7, 3, 5, 2, 6, 4, 6, 3, 5, 4, 6];
+    if (hairStyle === 'slick') p.rect(13, 13, 34, 14, H);
+    else
+      for (let x = 13; x <= 34; x++) {
+        const inner = x > 15 && x < 32;
+        p.rect(x, 15, x, 15 + Math.min(fr[x - 13], inner ? 4 : 8), H);
+      }
+    const side = hairStyle === 'long' ? 44 : hairStyle === 'bob' ? 30 : hairStyle === 'slick' ? 21 : 25;
+    for (let y = 14; y <= side; y++) {
+      const w = y > 30 ? 3 + Math.floor((y - 30) / 5) : 3;
+      p.rect(11, y, 11 + w - 1, y, H);
+      p.rect(37 - w, y, 36, y, H);
+    }
+    if (hairStyle === 'spiky') {
+      for (const [x0, h, lean] of [[14, 4, -1.2], [20, 5, -0.8], [27, 5, 0.6], [33, 4, 1.2]]) {
+        for (let i = 0; i < h; i++) {
+          const w = Math.max(0.5, 3.2 - i * 0.7);
+          const cx = x0 + lean * i;
+          p.rect(Math.round(cx - w), 7 - i, Math.round(cx + w), 7 - i, H);
+        }
+      }
+    }
+    if (spec.ahoge) {
+      p.line(26, 5, 29, 0, H);
+      p.line(27, 5, 30, 1, H);
+      p.set(31, 1, H);
+    }
+    // strands and highlight band
+    for (const x of [18, 23, 28]) p.line(x, 9, x - 1, 18, adjust(H, -0.2));
+    p.line(16, 10, 21, 8, hl, true);
+    p.line(17, 11, 22, 9, hl, true);
+    p.set(26, 8, hl, true);
+    p.set(27, 8, hl, true);
+    if (hairStyle === 'long') {
+      p.line(12, 26, 12, 44, adjust(H, 0.18));
+      p.line(35, 26, 35, 44, adjust(H, -0.2));
+    }
+  }
+  if (spec.circlet) {
+    p.line(13, 14, 34, 14, spec.circlet, true);
+    p.disc(24, 14.5, 1.6, C.gem, null, true);
+    p.set(23, 14, '#ffffff', true);
+  }
+  if (spec.monocle) {
+    p.disc(29.5, 23.5, 3.6, C.gold, (x, y) => {
+      const d = Math.hypot(x + 0.5 - 29.5, y + 0.5 - 23.5);
+      return d > 2.6;
+    }, true);
+    p.line(33, 25, 34, 34, C.gold, true);
+  }
+
+  // soft shadow under hair, helmet brims and the chin
+  const src = p.px.slice();
+  for (let y = 1; y < 48; y++)
+    for (let x = 0; x < 48; x++) {
+      const i = y * 48 + x;
+      if (src[i] !== S || p.locked.has(i)) continue;
+      const up = src[i - 48];
+      if (up && up !== S && !p.locked.has(i - 48)) p.px[i] = adjust(S, -0.16);
+      else if (x >= 31) p.px[i] = adjust(S, -0.08);
+    }
+  p.shade(0.12, 0.16);
+  p.outline(-0.72);
+  return p;
+}
+
+const portraitCache = new Map();
+export function portraitURL(spec) {
+  if (!portraitCache.has(spec)) portraitCache.set(spec, drawPortrait(spec).toCanvas().toDataURL());
+  return portraitCache.get(spec);
 }
 
 // ---------------------------------------------------------------- props

@@ -10,13 +10,14 @@ import { HorizontalTiltShiftShader } from 'three/examples/jsm/shaders/Horizontal
 import { VerticalTiltShiftShader } from 'three/examples/jsm/shaders/VerticalTiltShiftShader.js';
 import {
   tileCanvas, waterCanvas, drawTree, drawTuft, drawRock, drawTorch, drawFlames, drawBanner,
-  characterFrames, pixelTex, highlightTex, cursorTex, ringTex, blobTex, skyTex,
+  characterFrames, portraitURL, CHAR_W, CHAR_H, pixelTex, highlightTex, cursorTex, ringTex, blobTex, skyTex,
 } from './pixelart.js';
 import { DIRS, EXTRAS, LV, topY } from './map.js';
 import { clamp, mulberry32, tween, Ease } from './util.js';
 import { SPECS } from './data.js';
 
 export const PX = 1 / 18; // world units per sprite pixel
+const CHAR_PX = 1 / 23; // characters are drawn at a finer pixel size
 
 const GradeShader = {
   uniforms: {
@@ -290,9 +291,9 @@ export class World {
     });
   }
 
-  makeSprite(tex, w, h, { shadow = true, emissive = 0.22 } = {}) {
-    const geo = new THREE.PlaneGeometry(w * PX, h * PX);
-    geo.translate(0, (h * PX) / 2, 0);
+  makeSprite(tex, w, h, { shadow = true, emissive = 0.22, px = PX } = {}) {
+    const geo = new THREE.PlaneGeometry(w * px, h * px);
+    geo.translate(0, (h * px) / 2, 0);
     // Tilt normals upward so overhead lights read on the upright sprite.
     const n = geo.attributes.normal;
     for (let i = 0; i < n.count; i++) n.setXYZ(i, 0, 0.55, 0.835);
@@ -419,7 +420,7 @@ export class World {
       const v = this.activeUnit.view;
       g.visible = true;
       g.position.copy(v.group.position);
-      g.position.y += 32 * PX * v.baseScale + 0.3 + Math.sin(this.time * 4) * 0.06;
+      g.position.y += v.height() + 0.3 + Math.sin(this.time * 4) * 0.06;
       cone.rotation.y = this.time * 2;
     });
     return g;
@@ -589,9 +590,9 @@ export class UnitView {
       front: this.frames.front.map((p) => pixelTex(p.toCanvas())),
       back: this.frames.back.map((p) => pixelTex(p.toCanvas())),
     };
-    unit.portrait = this.frames.front[0].toCanvas().toDataURL();
+    unit.portrait = portraitURL(SPECS[unit.spec]);
     this.baseScale = unit.boss ? 1.22 : 1;
-    this.mesh = world.makeSprite(this.tex.front[0], 24, 32, { emissive: this.baseEmissive() });
+    this.mesh = world.makeSprite(this.tex.front[0], CHAR_W, CHAR_H, { emissive: this.baseEmissive(), px: CHAR_PX });
     this.world.billboards.pop(); // unit sprites are billboarded in update()
     this.mesh.userData.view = this;
     this.group = new THREE.Group();
@@ -627,6 +628,10 @@ export class UnitView {
   setPosLerp(a, b, k, arc) {
     this.group.position.lerpVectors(a, b, k);
     this.group.position.y += Math.sin(Math.PI * k) * arc;
+  }
+
+  height() {
+    return CHAR_H * CHAR_PX * this.baseScale;
   }
 
   center() {

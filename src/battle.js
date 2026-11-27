@@ -623,7 +623,8 @@ export class Battle {
     if (c.moved && !c.acted) items.push({ label: '取消移動', onClick: () => this.undoMove() });
     items.push({ label: c.moved || c.acted ? '結束行動' : '待機', desc: '選擇面向後結束回合。未移動／未行動可更快輪到下一回合。', onClick: () => this.beginFacing() });
     this.ui.setMenu(items);
-    this.ui.hint('Q / E 旋轉視角　滾輪縮放　WASD 平移　右鍵取消');
+    this.ui.setActions({});
+    this.ui.hint(this.ui.touch ? '單指拖曳平移　雙指縮放／旋轉' : 'Q / E 旋轉視角　滾輪縮放　WASD 平移　右鍵取消');
   }
 
   beginMove() {
@@ -632,18 +633,21 @@ export class Battle {
     c.reach = this.reachable(c.u);
     this.ui.clearMenu();
     this.world.setHighlight('range', c.reach.dests, 0x4aa8ff, 0.55);
-    this.ui.hint('選擇移動目的地　右鍵取消');
+    this.ui.setActions({ cancel: true });
+    this.ui.hint(this.ui.touch ? '點選移動目的地' : '選擇移動目的地　右鍵取消');
   }
 
   beginTarget(a) {
     const c = this.ctx;
     this.state = 'target';
     c.action = a;
+    c.armed = null;
     this.ui.clearMenu();
+    this.ui.setActions({ cancel: true });
     const tiles = this.rangeTiles(a, c.u.x, c.u.z);
     const friendly = a.target === 'ally' || a.target === 'self';
     this.world.setHighlight('range', tiles, friendly ? 0x5fe08a : 0xff6a5a, 0.42);
-    this.ui.hint(`${a.name}：選擇目標　右鍵取消`);
+    this.ui.hint(this.ui.touch ? `${a.name}：點目標預覽，再點一次執行` : `${a.name}：選擇目標　右鍵取消`);
   }
 
   beginFacing() {
@@ -653,7 +657,8 @@ export class Battle {
     this.world.clearHighlights();
     const adj = DIRS.map(([dx, dz]) => ({ x: c.u.x + dx, z: c.u.z + dz })).filter((t) => this.map.tile(t.x, t.z));
     this.world.setHighlight('range', adj, 0xffd45a, 0.5);
-    this.ui.hint('移動游標選擇面向，點擊確定（Enter 確定）　右鍵返回');
+    this.ui.setActions({ cancel: !(c.moved && c.acted), confirm: true });
+    this.ui.hint(this.ui.touch ? '點相鄰格子選擇面向，或按「確定」' : '移動游標選擇面向，點擊確定（Enter 確定）　右鍵返回');
   }
 
   async undoMove() {
@@ -674,6 +679,7 @@ export class Battle {
     this.ctx = null;
     this.world.clearHighlights();
     this.ui.clearMenu();
+    this.ui.setActions({});
     this.ui.setPreview(null);
     this.ui.hint('');
     c.resolve({ moved: c.moved, acted: c.acted });
@@ -709,13 +715,14 @@ export class Battle {
     }
   }
 
-  async onClick(pick) {
+  async onClick(pick, touch = false) {
     const c = this.ctx;
     if (!c || !pick || !pick.tile) return;
     const { x, z } = pick.tile;
     if (this.state === 'move') {
       if (!c.reach.has(x, z)) return;
       sfx('select');
+      this.ui.setActions({});
       this.state = 'busy';
       this.world.clearHighlights();
       await this.moveUnit(c.u, this.pathTo(c.reach, x, z));
@@ -725,7 +732,15 @@ export class Battle {
       const a = c.action;
       const inRange = this.rangeTiles(a, c.u.x, c.u.z).some((r) => r.x === x && r.z === z);
       if (!inRange || !this.targetValid(c.u, a, x, z)) return;
+      // On touch there is no hover, so the first tap previews and the second tap commits.
+      if (touch && c.armed !== key(x, z)) {
+        c.armed = key(x, z);
+        sfx('turn');
+        this.ui.hint('再點一次同一格執行');
+        return;
+      }
       sfx('select');
+      this.ui.setActions({});
       this.state = 'busy';
       this.world.clearHighlights();
       this.ui.setPreview(null);
