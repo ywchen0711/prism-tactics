@@ -145,7 +145,7 @@ const blush = (skin) => {
 // Each character's face is described by spec.face so that nobody shares the same features:
 //   eyes:  round | droopy | sharp | sleepy | almond | closed | fierce | slit
 //   brows: normal | thick | angry | thin | arched | worried | bushy | none
-//   mouth: smile | small | open | smirk | frown | flat | grit | none
+//   mouth: smile | small | gentle | open | smirk | frown | flat | grit | none
 //   nose:  dot | normal | long | big
 //   jaw:   normal | round | square | sharp | long
 //   marks: freckles, mole, stubble, wrinkles, scar, tattoo, mustache
@@ -350,6 +350,12 @@ function drawPortraitFeatures(p, spec, F, C, S, H) {
       m(23, 29);
       m(24, 29);
       break;
+    case 'gentle': // closed, soft rose smile with faint lifted corners
+      m(23, 29, F.lip || mix(S, '#c0505a', 0.5));
+      m(24, 29, F.lip || mix(S, '#c0505a', 0.5));
+      m(22, 28, dark(-0.16));
+      m(25, 28, dark(-0.16));
+      break;
     case 'open':
       for (let x = 22; x <= 25; x++) m(x, 28, '#5a2028');
       m(22, 29, '#5a2028');
@@ -498,6 +504,9 @@ function drawSpriteFeatures(p, spec, F, C, hy) {
         m(14, 4);
         m(15, 5);
         m(16, 4);
+        break;
+      case 'gentle':
+        m(15, 4, F.lip || mix(S, '#c0505a', 0.5));
         break;
       case 'open':
         m(14, 4, '#5a2028');
