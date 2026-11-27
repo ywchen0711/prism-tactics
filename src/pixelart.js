@@ -141,6 +141,419 @@ const blush = (skin) => {
   return rgbToHex(r * 0.7 + 255 * 0.3, g * 0.72 + 120 * 0.28, b * 0.72 + 130 * 0.28);
 };
 
+// ---------------------------------------------------------------- faces
+// Each character's face is described by spec.face so that nobody shares the same features:
+//   eyes:  round | droopy | sharp | sleepy | almond | closed | fierce | slit
+//   brows: normal | thick | angry | thin | arched | worried | bushy | none
+//   mouth: smile | small | open | smirk | frown | flat | grit | none
+//   nose:  dot | normal | long | big
+//   jaw:   normal | round | square | sharp | long
+//   marks: freckles, mole, stubble, wrinkles, scar, tattoo, mustache
+export function faceOf(spec) {
+  return {
+    eyes: 'round',
+    brows: 'normal',
+    mouth: spec.fem ? 'small' : 'flat',
+    nose: spec.fem ? 'dot' : 'normal',
+    jaw: 'normal',
+    marks: [],
+    ...spec.face,
+  };
+}
+
+const mix = (a, b, t) => {
+  const [r1, g1, b1] = hexToRgb(a);
+  const [r2, g2, b2] = hexToRgb(b);
+  return rgbToHex(r1 + (r2 - r1) * t, g1 + (g2 - g1) * t, b1 + (b2 - b1) * t);
+};
+
+function drawPortraitFeatures(p, spec, F, C, S, H) {
+  const has = (m) => F.marks.includes(m);
+  const ink = C.eye;
+  const dark = (amt) => adjust(S, amt);
+  const browCol = adjust(spec.colors.hair ? H : '#4a3a30', -0.28);
+  const ey = 21;
+
+  const eye = (ex, flip) => {
+    const at = (i) => (flip ? ex + 4 - i : ex + i);
+    const put = (i, r, c) => p.set(at(i), ey + r, c, true);
+    const glint = (r) => p.set(ex + 1, ey + r, '#ffffff', true);
+    const iris = (rows, cols = [1, 2, 3]) =>
+      rows.forEach((r, k) => {
+        const c = k === 0 ? adjust(C.iris, -0.4) : k === rows.length - 1 && rows.length > 2 ? adjust(C.iris, 0.3) : C.iris;
+        cols.forEach((i) => put(i, r, c));
+      });
+    switch (F.eyes) {
+      case 'droopy': // big gentle eyes, outer corners turned down
+        for (let i = 1; i <= 4; i++) put(i, 0, ink);
+        put(0, 1, ink);
+        put(-1, 2, ink);
+        iris([1, 2, 3, 4]);
+        put(4, 1, WHITE);
+        put(4, 2, WHITE);
+        put(0, 2, WHITE);
+        put(2, 2, adjust(C.iris, -0.55));
+        glint(1);
+        p.set(ex + 3, ey + 3, '#ffffff', true);
+        for (let i = 1; i <= 3; i++) put(i, 5, dark(-0.12));
+        break;
+      case 'sharp': // narrow, outer corners lifted
+        put(-1, -1, ink);
+        put(0, -1, ink);
+        for (let i = 1; i <= 4; i++) put(i, 0, ink);
+        put(0, 0, ink);
+        iris([1, 2]);
+        put(4, 1, WHITE);
+        put(0, 1, WHITE);
+        put(2, 1, adjust(C.iris, -0.6));
+        glint(1);
+        for (let i = 0; i <= 3; i++) put(i, 3, dark(-0.2));
+        break;
+      case 'sleepy': // heavy lids, iris half hidden
+        for (let i = 0; i <= 4; i++) put(i, -1, dark(-0.16));
+        for (let i = 0; i <= 4; i++) put(i, 0, ink);
+        for (let i = 0; i <= 4; i++) put(i, 1, adjust(ink, 0.15));
+        iris([2, 3]);
+        put(0, 2, WHITE);
+        put(4, 2, WHITE);
+        p.set(ex + 1, ey + 2, '#ffffff', true);
+        for (let i = 1; i <= 3; i++) put(i, 4, dark(-0.14));
+        break;
+      case 'almond': // long lashes and a flick at the outer corner
+        for (let i = 0; i <= 4; i++) put(i, 0, ink);
+        put(-1, 0, ink);
+        put(-2, -1, ink);
+        put(-1, 2, ink);
+        iris([1, 2, 3]);
+        put(0, 1, WHITE);
+        put(4, 1, WHITE);
+        put(4, 2, WHITE);
+        put(2, 2, adjust(C.iris, -0.55));
+        glint(1);
+        for (let i = 1; i <= 3; i++) put(i, 4, dark(-0.18));
+        break;
+      case 'closed': // kind smiling arcs
+        put(0, 2, ink);
+        put(1, 1, ink);
+        put(2, 1, ink);
+        put(3, 1, ink);
+        put(4, 2, ink);
+        break;
+      case 'fierce': // small iris ringed with white, heavy shadow above
+        for (let i = -1; i <= 4; i++) put(i, -1, dark(-0.28));
+        for (let i = -1; i <= 4; i++) put(i, 0, ink);
+        for (let i = 0; i <= 4; i++) {
+          put(i, 1, WHITE);
+          put(i, 2, WHITE);
+        }
+        put(2, 1, adjust(C.iris, -0.3));
+        put(2, 2, C.iris);
+        put(3, 1, adjust(C.iris, -0.3));
+        put(3, 2, C.iris);
+        for (let i = 0; i <= 4; i++) put(i, 3, dark(-0.3));
+        break;
+      case 'slit': // thin glowing line
+        for (let i = -1; i <= 4; i++) put(i, 0, ink);
+        for (let i = 0; i <= 4; i++) put(i, 1, adjust(C.iris, 0.15));
+        put(2, 1, '#fff0f0');
+        for (let i = 0; i <= 3; i++) put(i, 2, ink);
+        break;
+      default: // round
+        for (let i = 0; i <= 4; i++) put(i, 0, ink);
+        iris([1, 2, 3]);
+        put(0, 1, WHITE);
+        put(0, 2, WHITE);
+        put(4, 1, WHITE);
+        put(4, 2, WHITE);
+        put(2, 2, adjust(C.iris, -0.55));
+        glint(1);
+        for (let i = 1; i <= 3; i++) put(i, 4, dark(-0.14));
+    }
+
+    const by = spec.helmet ? 20 : 18;
+    const b = (i, y, c = browCol) => p.set(at(i), y, c, true);
+    switch (F.brows) {
+      case 'thick':
+        for (let i = 0; i <= 4; i++) {
+          b(i, by);
+          if (!spec.helmet) b(i, by - 1);
+        }
+        break;
+      case 'angry':
+        // outer end high, inner end pulled down toward the nose
+        for (const [i, y] of [[0, -1], [1, -1], [1, 0], [2, 0], [3, 0], [4, 0]]) b(i, by + y);
+        if (!spec.helmet) for (const [i, y] of [[0, -2], [2, -1], [3, 1], [4, 1]]) b(i, by + y);
+        break;
+      case 'thin':
+        for (let i = 1; i <= 3; i++) b(i, by, adjust(browCol, 0.15));
+        break;
+      case 'arched':
+        b(0, by + 1);
+        b(1, by);
+        b(2, by - 1);
+        b(3, by - 1);
+        b(4, by);
+        break;
+      case 'worried':
+        b(0, by + 1);
+        b(1, by + 1);
+        b(2, by);
+        b(3, by - 1);
+        break;
+      case 'bushy':
+        for (let i = -1; i <= 4; i++) {
+          b(i, by, H);
+          if (i % 2 === 0 || i === 4) b(i, by - 1, H);
+        }
+        b(-2, by + 1, H);
+        break;
+      case 'none':
+        break;
+      default:
+        for (let i = 0; i <= 3; i++) b(i, by);
+    }
+  };
+  eye(16, false);
+  eye(27, true);
+
+  // nose
+  const n = (x, y, a) => p.set(x, y, dark(a), true);
+  if (F.nose === 'dot') n(24, 26, -0.2);
+  else if (F.nose === 'long') {
+    for (let y = 23; y <= 26; y++) n(25, y, -0.1);
+    n(25, 27, -0.3);
+    n(23, 27, -0.2);
+  } else if (F.nose === 'big') {
+    for (let y = 23; y <= 26; y++) n(25, y, -0.12);
+    n(22, 27, -0.25);
+    n(23, 28, -0.3);
+    n(25, 28, -0.3);
+    n(26, 27, -0.25);
+    n(24, 27, -0.14);
+  } else {
+    n(24, 26, -0.2);
+    n(25, 27, -0.26);
+  }
+
+  // mouth
+  const lip = F.lip || dark(-0.4);
+  const m = (x, y, c = lip) => p.set(x, y, c, true);
+  switch (F.mouth) {
+    case 'smile':
+      m(21, 28);
+      for (let x = 22; x <= 25; x++) m(x, 29);
+      m(26, 28);
+      m(23, 30, dark(-0.12));
+      m(24, 30, dark(-0.12));
+      break;
+    case 'small':
+      m(23, 29);
+      m(24, 29);
+      break;
+    case 'open':
+      for (let x = 22; x <= 25; x++) m(x, 28, '#5a2028');
+      m(22, 29, '#5a2028');
+      m(23, 29, '#d0606a');
+      m(24, 29, '#d0606a');
+      m(25, 29, '#5a2028');
+      m(23, 30, '#5a2028');
+      m(24, 30, '#5a2028');
+      break;
+    case 'smirk':
+      for (let x = 21; x <= 24; x++) m(x, 29);
+      m(25, 28);
+      m(26, 27);
+      m(27, 27, dark(-0.18));
+      break;
+    case 'frown':
+      m(21, 30);
+      for (let x = 22; x <= 25; x++) m(x, 29);
+      m(26, 30);
+      break;
+    case 'grit':
+      for (let x = 20; x <= 27; x++) {
+        m(x, 28, '#3a1a1a');
+        m(x, 30, '#3a1a1a');
+        m(x, 29, x === 20 || x === 27 ? '#3a1a1a' : x === 23 || x === 25 ? '#b8b0a0' : '#f0ece0');
+      }
+      break;
+    case 'none':
+      break;
+    default:
+      for (let x = 21; x <= 26; x++) m(x, 29);
+  }
+
+  // marks
+  if (spec.fem && !has('freckles')) {
+    p.rect(15, 26, 17, 26, blush(S), true);
+    p.rect(30, 26, 32, 26, blush(S), true);
+  }
+  if (has('freckles')) for (const [x, y] of [[16, 26], [18, 27], [17, 25], [29, 25], [31, 26], [30, 27], [22, 26], [26, 25]]) p.set(x, y, mix(S, '#9a4a22', 0.45), true);
+  if (has('mole')) p.set(31, 28, '#4a2a2a', true);
+  if (has('stubble'))
+    for (let y = 27; y <= 33; y++)
+      for (let x = 15; x <= 32; x++) {
+        const i = y * 48 + x;
+        if (p.px[i] === S && !p.locked.has(i) && (x + y) % 2 === 0 && (y >= 30 || x < 20 || x > 27)) p.set(x, y, mix(S, '#4a5a6a', 0.3), true);
+      }
+  if (has('wrinkles')) {
+    for (const [x, y] of [[14, 22], [14, 24], [15, 25], [33, 22], [33, 24], [32, 25], [20, 27], [20, 28], [27, 27], [27, 28]]) p.set(x, y, dark(-0.2), true);
+    for (let x = 17; x <= 30; x++) if (x !== 23 && x !== 24) p.set(x, 16, dark(-0.12), true);
+    for (let x = 17; x <= 19; x++) p.set(x, 25, dark(-0.12), true);
+    for (let x = 28; x <= 30; x++) p.set(x, 25, dark(-0.12), true);
+  }
+  if (has('scar')) {
+    p.line(29, 17, 32, 27, dark(-0.4), true);
+    p.line(30, 17, 33, 27, mix(S, '#e8b0a0', 0.5), true);
+  }
+  if (has('tattoo')) for (const [x, y] of [[17, 26], [17, 27], [18, 28], [30, 26], [30, 27], [29, 28], [24, 15], [23, 16], [25, 16]]) p.set(x, y, '#c02848', true);
+  if (has('mustache')) {
+    const mc = adjust(spec.colors.hair || '#5a4030', -0.1);
+    for (let x = 20; x <= 27; x++) p.set(x, 28, mc, true);
+    p.set(19, 29, mc, true);
+    p.set(28, 29, mc, true);
+  }
+}
+
+function drawSpriteFeatures(p, spec, F, C, hy) {
+  const has = (m) => F.marks.includes(m);
+  const S = C.skin;
+  const ink = C.eye;
+  // i = 0 is the outer corner; left eye spans x 11..13, right eye 16..18
+  const both = (i, r, c) => {
+    p.set(11 + i, hy + 1 + r, c, true);
+    p.set(18 - i, hy + 1 + r, c, true);
+  };
+  const lash = (from, to, r = 0) => {
+    for (let i = from; i <= to; i++) both(i, r, ink);
+  };
+  switch (F.eyes) {
+    case 'droopy':
+      lash(1, 2);
+      both(0, 1, ink);
+      both(1, 1, C.iris);
+      both(2, 1, adjust(C.iris, -0.3));
+      both(1, 0, adjust(C.iris, -0.35));
+      break;
+    case 'sharp':
+      both(0, -1, ink);
+      lash(1, 2);
+      both(1, 1, C.iris);
+      both(2, 1, adjust(C.iris, -0.4));
+      break;
+    case 'sleepy':
+      lash(0, 2);
+      both(1, 1, adjust(C.iris, 0.1));
+      both(2, 1, C.iris);
+      both(0, -1, adjust(S, -0.2));
+      both(1, -1, adjust(S, -0.2));
+      break;
+    case 'almond':
+      lash(0, 2);
+      both(-1, -1, ink);
+      both(0, 1, WHITE);
+      both(1, 1, C.iris);
+      both(2, 1, adjust(C.iris, -0.35));
+      break;
+    case 'closed':
+      both(0, 1, ink);
+      both(1, 0, ink);
+      both(2, 1, ink);
+      break;
+    case 'fierce':
+      lash(0, 2);
+      both(0, 1, WHITE);
+      both(1, 1, C.iris);
+      both(2, 1, WHITE);
+      both(0, -1, adjust(S, -0.3));
+      both(1, -1, adjust(S, -0.3));
+      both(2, -1, adjust(S, -0.3));
+      break;
+    case 'slit':
+      lash(0, 2, -1);
+      lash(0, 2, 0);
+      both(1, 0, adjust(C.iris, 0.2));
+      both(2, 0, adjust(C.iris, 0.2));
+      break;
+    default:
+      lash(0, 2);
+      both(0, 1, WHITE);
+      both(1, 1, C.iris);
+      both(2, 1, adjust(C.iris, -0.35));
+  }
+  const bc = adjust(spec.colors.hair || '#4a3a30', -0.3);
+  if (F.brows === 'thick' || F.brows === 'angry') {
+    both(1, -1, bc);
+    both(2, -1, bc);
+    both(0, F.brows === 'angry' ? -2 : -1, bc);
+  } else if (F.brows === 'bushy') {
+    for (let i = -1; i <= 2; i++) both(i, -1, C.hair);
+  }
+
+  const lip = F.lip || adjust(S, -0.35);
+  const m = (x, y, c = lip) => p.set(x, hy + y, c, true);
+  if (!spec.beard)
+    switch (F.mouth) {
+      case 'smile':
+        m(14, 4);
+        m(15, 5);
+        m(16, 4);
+        break;
+      case 'open':
+        m(14, 4, '#5a2028');
+        m(15, 4, '#5a2028');
+        m(14, 5, '#d0606a');
+        m(15, 5, '#d0606a');
+        break;
+      case 'smirk':
+        m(14, 5);
+        m(15, 5);
+        m(16, 4);
+        break;
+      case 'frown':
+        m(14, 5);
+        m(15, 4);
+        m(16, 5);
+        break;
+      case 'grit':
+        m(13, 4, '#3a1a1a');
+        m(14, 4, '#f0ece0');
+        m(15, 4, '#f0ece0');
+        m(16, 4, '#f0ece0');
+        m(17, 4, '#3a1a1a');
+        break;
+      case 'flat':
+        m(14, 4);
+        m(15, 4);
+        m(16, 4);
+        break;
+      case 'none':
+        break;
+      default:
+        m(15, 4);
+    }
+  if (spec.fem && !has('freckles')) {
+    p.set(10, hy + 3, blush(S), true);
+    p.set(19, hy + 3, blush(S), true);
+  }
+  if (has('freckles')) for (const x of [11, 13, 17, 19]) p.set(x, hy + 3, mix(S, '#9a4a22', 0.5), true);
+  if (has('mole')) p.set(19, hy + 3, '#4a2a2a', true);
+  if (has('stubble')) for (let x = 11; x <= 20; x += 2) p.get(x, hy + 5) === S && p.set(x, hy + 5, mix(S, '#4a5a6a', 0.35), true);
+  if (has('scar')) p.line(18, hy, 19, hy + 3, adjust(S, -0.4), true);
+  if (has('tattoo')) {
+    p.set(12, hy + 3, '#c02848', true);
+    p.set(17, hy + 3, '#c02848', true);
+  }
+  if (has('wrinkles')) {
+    p.set(10, hy + 2, adjust(S, -0.22), true);
+    p.set(21, hy + 2, adjust(S, -0.22), true);
+  }
+  if (has('mustache')) {
+    const mc = adjust(spec.colors.hair || '#5a4030', -0.1);
+    for (let x = 13; x <= 17; x++) p.set(x, hy + 3, mc, true);
+  }
+}
+
 export const CHAR_W = 32;
 export const CHAR_H = 44;
 
@@ -335,22 +748,7 @@ export function drawCharacter(spec, view, frame) {
       p.rect(14, hy + 6, 17, hy + 6, H);
       p.rect(15, hy + 4, 16, hy + 4, adjust(C.skin, -0.3));
     }
-    if (!spec.visor) {
-      // eyes: lash line, iris and a catch-light
-      p.rect(11, hy + 1, 13, hy + 1, C.eye, true);
-      p.rect(16, hy + 1, 18, hy + 1, C.eye, true);
-      p.set(11, hy + 2, WHITE, true);
-      p.set(12, hy + 2, C.iris, true);
-      p.set(13, hy + 2, adjust(C.iris, -0.35), true);
-      p.set(16, hy + 2, C.iris, true);
-      p.set(17, hy + 2, adjust(C.iris, -0.35), true);
-      p.set(18, hy + 2, WHITE, true);
-      if (!spec.beard) p.set(15, hy + 4, adjust(C.skin, -0.3), true);
-      if (spec.fem) {
-        p.set(10, hy + 3, blush(C.skin), true);
-        p.set(19, hy + 3, blush(C.skin), true);
-      }
-    }
+    if (!spec.visor) drawSpriteFeatures(p, spec, faceOf(spec), C, hy);
   }
 
   if (!back) drawWeapon(p, spec, C, mx, hy, handY, atk);
@@ -509,12 +907,14 @@ export function drawPortrait(spec) {
     p.line(16, 34, 31, 34, adjust(spec.scarf, -0.2));
     p.rect(27, 36, 31, 42, spec.scarf);
   }
+  const F = faceOf(spec);
+  const JAW = { normal: [10, 10.5, 31], round: [10.3, 10, 33], square: [10.5, 11, 34], sharp: [9.6, 10.5, 30], long: [10, 11.5, 32] }[F.jaw];
   const face = (x, y) => {
-    const dx = (x + 0.5 - 24) / 10;
-    const dy = (y + 0.5 - 21) / (y > 21 ? 10.5 : 11);
-    return dx * dx + dy * dy <= 1 && !(y >= 29 && Math.abs(x + 0.5 - 24) > 31 - y);
+    const dx = (x + 0.5 - 24) / JAW[0];
+    const dy = (y + 0.5 - 21) / (y > 21 ? JAW[1] : 11);
+    return dx * dx + dy * dy <= 1 && !(y >= 29 && Math.abs(x + 0.5 - 24) > JAW[2] - y);
   };
-  for (let y = 9; y <= 32; y++) for (let x = 13; x <= 34; x++) if (face(x, y)) p.set(x, y, S);
+  for (let y = 9; y <= 33; y++) for (let x = 13; x <= 34; x++) if (face(x, y)) p.set(x, y, S);
   if (bare) {
     p.rect(13, 21, 13, 24, S);
     p.rect(34, 21, 34, 24, S);
@@ -522,47 +922,6 @@ export function drawPortrait(spec) {
     p.set(34, 22, adjust(S, -0.2));
   }
 
-  // eyes
-  const eye = (ex, flip) => {
-    const at = (i) => (flip ? ex + 4 - i : ex + i);
-    const ey = 21;
-    for (let i = 0; i <= 4; i++) p.set(at(i), ey, C.eye, true);
-    p.set(at(-1), ey - (spec.fem ? 1 : 0), C.eye, true);
-    for (let r = 1; r <= 3; r++) {
-      const iris = r === 1 ? adjust(C.iris, -0.4) : r === 2 ? C.iris : adjust(C.iris, 0.3);
-      for (let i = 1; i <= 3; i++) p.set(at(i), ey + r, iris, true);
-    }
-    p.set(at(0), ey + 1, WHITE, true);
-    p.set(at(0), ey + 2, WHITE, true);
-    p.set(at(4), ey + 1, WHITE, true);
-    p.set(at(4), ey + 2, WHITE, true);
-    p.set(flip ? ex + 2 : ex + 1, ey + 1, '#ffffff', true);
-    p.set(at(2), ey + 2, adjust(C.iris, -0.55), true);
-    for (let i = 1; i <= 3; i++) p.set(at(i), ey + 4, adjust(S, -0.14), true);
-    // brow
-    const bc = adjust(spec.helmet || spec.hood ? '#4a3a30' : H, -0.25);
-    if (spec.stern) {
-      p.line(at(0), 17, at(4), 19, bc, true);
-      p.line(at(0), 18, at(4), 20, bc, true);
-    } else {
-      p.rect(Math.min(at(0), at(3)), 18, Math.max(at(0), at(3)), 18, bc, true);
-    }
-  };
-  if (!spec.visor) {
-    eye(16, false);
-    eye(27, true);
-    p.set(24, 26, adjust(S, -0.2), true);
-    p.set(25, 27, adjust(S, -0.26), true);
-    if (spec.fem) {
-      p.rect(23, 29, 24, 29, adjust(S, -0.38), true);
-      p.rect(15, 26, 17, 26, blush(S), true);
-      p.rect(30, 26, 32, 26, blush(S), true);
-    } else {
-      p.rect(22, 29, 25, 29, adjust(S, -0.38), true);
-      if (spec.stern) p.set(21, 30, adjust(S, -0.3), true);
-    }
-    if (spec.scar) p.line(29, 18, 32, 26, adjust(S, -0.35), true);
-  }
   if (spec.beard) {
     for (let y = 27; y <= 35; y++) {
       const hw = y < 29 ? 9 : 9 - (y - 29) * 1.2;
@@ -578,8 +937,8 @@ export function drawPortrait(spec) {
   const hl = adjust(H, 0.35);
   if (spec.helmet) {
     const M = C.metal;
-    p.disc(24, 18, 13, M, (x, y) => y <= 19);
-    p.rect(11, 19, 36, 20, adjust(M, -0.3));
+    p.disc(24, 18, 13, M, (x, y) => y <= 18);
+    p.rect(11, 18, 36, 19, adjust(M, -0.3));
     p.rect(11, 20, 15, 31, M);
     p.rect(32, 20, 36, 31, M);
     p.rect(11, 29, 15, 31, adjust(M, -0.2));
@@ -663,6 +1022,7 @@ export function drawPortrait(spec) {
       p.line(35, 26, 35, 44, adjust(H, -0.2));
     }
   }
+  if (!spec.visor) drawPortraitFeatures(p, spec, F, C, S, H);
   if (spec.circlet) {
     p.line(13, 14, 34, 14, spec.circlet, true);
     p.disc(24, 14.5, 1.6, C.gem, null, true);
