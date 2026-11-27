@@ -35,7 +35,7 @@ export const CLASSES = {
 export const PORTRAIT_RES = 2;
 
 // Characters with a chosen painted portrait (public/portraits): 'illust' = the painting, 'px' = its pixelated version.
-export const PAINTED = {};
+export const PAINTED = { seren: 'illust', corti: 'illust', ely: 'illust', fid: 'illust', benny: 'illust', general: 'illust', eMage: 'illust' };
 
 export const SPECS = {
   seren: { face: { eyes: 'round', brows: 'angry', mouth: 'flat', nose: 'normal', jaw: 'normal' }, weapon: 'sword', cape: true, pauldrons: true, hairStyle: 'short', bangs: 'jagged', ahoge: true, colors: { hair: '#6a4030', iris: '#3a78c8', skin: '#f1c9a5', armor: '#3c5a8e', armor2: '#c9a24a', cape: '#24386a', pants: '#2b2734', boots: '#4a3020', gem: '#7ad8ff' } },

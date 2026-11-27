@@ -36,6 +36,7 @@
 
 ![白晝戰鬥](docs/battle-day.png)
 ![夜襲](docs/battle-night.png)
+![劇情對話](docs/dialogue.png)
 ![信念天秤](docs/scales.png)
 
 ## 操作方式
